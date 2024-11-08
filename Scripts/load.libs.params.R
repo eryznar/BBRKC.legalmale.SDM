@@ -1,7 +1,7 @@
 ### LOAD PACKAGES -----------------------------------------------------------------------------------------
 library(sf)
 library(ggmap)
-library(rgdal)
+#library(rgdal)
 library(tidyverse)
 library(RColorBrewer)
 library(patchwork)
@@ -13,13 +13,15 @@ library(akgfmaps)
 library(biomod2)
 library(gam)
 library(purrr)
-
+library(effsize)
 library(dismo)
 library(gbm) 
 library(pROC)
 library(ggrepel)
 library(geosphere)
 library(usdm)
+library(statip)
+
 
 ### SET SPATIAL DETAILS ---------------------------------------------------------
 crs.latlon <- "epsg:4326" #lat lon crs
@@ -33,9 +35,11 @@ region_layers <- akgfmaps::get_base_layers(select.region = "bs.south", set.crs="
 
 survey_gdb <- "./Data/SAP_layers.gdb"
 
-readOGR(dsn=survey_gdb,layer="BristolBaySurveyStrata") %>%
-  vect(crs = crs.latlon) %>%
-  project(map.crs) -> BB_strata
+# Bristol Bay strata multipolygon
+BB_strata <- sf::st_read(survey_gdb, layer = "BristolBaySurveyStrata") %>%
+              # can also use sf::st_read() to read layers in as sf objects
+              vect() %>%
+            project(., map.crs)
 
 
 st_read("./Data/Closure areas/RKCSA_sub.shp") %>%
