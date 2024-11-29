@@ -201,7 +201,7 @@ model_iter <- function(train, test, seas, iteration){
   return(list(eval_df))
 }
 
-### FUN FUNCTION TO FIT MODELS ------------------------------------------------------
+### RUN FUNCTION TO FIT MODELS ------------------------------------------------------
 read.csv("./Data/EFH Legal Male/New models/lm_F_train.csv") %>%
   dplyr::select(!X) -> train
 read.csv("./Data/EFH Legal Male/New models/lm_F_test.csv") %>%

@@ -55,3 +55,6 @@ st_read("./Data/Closure areas/area512.shp") %>%
 # OTHER PARAMETERS --------------------------------------------------------------
 lm_iter <- 8
 thres <- 0.6626053
+
+readRDS("./Models/nb_model.rda") -> nb_model
+theta <- nb_model$theta # dispersion parameter from negative binomial model
