@@ -174,6 +174,8 @@ model_iter <- function(train, test, seas, iteration){
                       n.trees=model_p$gbm.call$best.trees, # see help
                       type="response") # predict probabilities
   
+  pred <- pred*theta # to control for overdispersion of abundance parameter
+  
   obs <- test2$catch_pp[which(test2$catch_pp >0)]
   
   RMSE <- sqrt(mean((obs-pred)^2))
