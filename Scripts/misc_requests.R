@@ -1,5 +1,6 @@
 source("./Scripts/load.libs.params.R")
 
+# Calculating sampling distribution by year and data type
 # Read in response data
 lm_df <- read.csv("./Data/legalmale_direct.fish.csv")
 
@@ -16,11 +17,14 @@ pp %>%
 
 View(hh)
 
-
+# Evaluating poisson dist
 lm_df %>%
   filter(year > 1996) -> dd
 
-hist(dd$catch_pp)
+hist(dd$catch_pp, breaks = 50, main = "", xlab = "Catch per pot")
+ggsave(plot,file="graph1.pdf")
+
+png("./Figures/respdata_hist.png", height = 4, width = 5, units = "in", res = 600)
 
 install.packages("MASS")
 library(MASS)
