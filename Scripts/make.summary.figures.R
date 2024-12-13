@@ -100,8 +100,7 @@ source("./Scripts/load.libs.params.R")
     
     # Multiply binomial raster by abundance raster (part of delta model framework)
     spatpred <- spatpred_b * spatpred_p
-    
-    thres <- mean(na.omit(values(spatpred_b$lyr1)))
+   
     
     # # Create data frame of spatial predictions (for pretty mapping)
     out <- cbind(crds(spatpred$lyr1), as.data.frame(spatpred$lyr1)) %>%
