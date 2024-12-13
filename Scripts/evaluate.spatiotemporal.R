@@ -512,13 +512,24 @@ observ <- rast("./Data/obs_rasters.tif")
 # 
 # c(1998:2019, 2021:2023) %>%
 #   purrr::map_df(~eval_spatresid(best.b, best.p, "env", train, test, preds, 8, observ, .x)) -> out.env
-
-write.csv(out.st, "./Output/resid.df.spacetime.csv")
-write.csv(out.env, "./Output/resid.df.env.csv")
+# 
+# write.csv(out.st, "./Output/resid.df.spacetime.csv")
+# write.csv(out.env, "./Output/resid.df.env.csv")
 
 # Load data
 out.st <- read.csv("./Output/resid.df.spacetime.csv")
 out.env <- read.csv("./Output/resid.df.env.csv")
+
+# Load models 
+best.b <- readRDS("./Models/lm.modelb.F.8.rda") # non-spatiotemporal
+best.p <- readRDS("./Models/lm.modelp.F.8.rda") # non-spatiotemporal
+
+b.space <- readRDS("./Models/lm.modelb.F.6space.rda") # spatial
+p.space <- readRDS("./Models/lm.modelp.F.6space.rda") # spatial
+
+b.spacetime <- readRDS("./Models/lm.modelb.F.8spacetime.rda") # spatiotemporal
+p.spacetime <- readRDS("./Models/lm.modelp.F.8spacetime.rda") # spatiotemporal
+
 
 # Function to evaluate models
 eval_models <- function(model_b, model_p, train, test, iteration){
@@ -554,6 +565,8 @@ eval_models <- function(model_b, model_p, train, test, iteration){
                       test2 %>% filter(catch_pp>0), # data to predict to
                       n.trees=model_p$gbm.call$best.trees, # see help
                       type="response") # predict probabilities
+  
+  pred <- pred*theta # to control for overdispersion of abundance parameter
   
   obs <- test2$catch_pp[which(test2$catch_pp >0)]
   
@@ -728,12 +741,58 @@ rr %>%
   group_by(x_bin, y_bin, year) %>%
   reframe(mean.resid = mean(residuals))  -> pp
 
-ggplot(pp) + 
-  geom_tile(aes(y = y_bin, x = x_bin, fill = mean.resid))+
+rr %>%
+  dplyr::select(!X) %>%
+  st_as_sf(., coords = c("x", "y"), crs = map.crs) %>%
+  st_transform(., crs.latlon) %>%
+  cbind(., st_coordinates(.)) %>%
+  as.data.frame(.) -> rr2
+
+rr2 %>%
+  mutate(x_bin = cut_number(X, n = 50, labels = FALSE), y_bin = cut_number(Y, n = 50, labels = FALSE)) %>%
+  group_by(x_bin, y_bin, year) %>%
+  reframe(mean.resid = mean(residuals)) -> pp
+
+rr2 %>%
+  mutate(x_bin = cut_number(X, n = 50), 
+         y_bin = cut_number(Y, n = 50)) %>%
+  group_by(x_bin, y_bin, year) %>%
+  reframe(mean.resid = mean(residuals))  -> pp2
+
+right_join(pp %>% rename(xbin.num = x_bin, ybin.num = y_bin), pp2) -> qq
+
+qq %>%
+  mutate(x_bin = case_when((grepl("\\[", x_bin) == TRUE) ~ gsub("\\[|\\]", "", x_bin),
+                           (grepl("\\(", x_bin) == TRUE) ~ gsub("\\(|\\]", "", x_bin),
+                           TRUE ~ x_bin),
+         y_bin = case_when((grepl("\\[", y_bin) == TRUE) ~ gsub("\\[|\\]", "", y_bin),
+                           (grepl("\\(", y_bin) == TRUE) ~ gsub("\\(|\\]", "", y_bin),
+                           TRUE ~ y_bin),
+         x.1 = as.numeric(as.character(str_sub(str_split_fixed(x_bin, ",", 2)[,1]))),
+         x.2 = as.numeric(as.character(str_sub(str_split_fixed(x_bin, ",", 2)[,2]))),
+         y.1 = as.numeric(as.character(str_sub(str_split_fixed(y_bin, ",", 2)[,1]))),
+         y.2 = as.numeric(as.character(str_sub(str_split_fixed(y_bin, ",", 2)[,2]))),
+         mid.x = ((x.1-x.2)/2) + x.2,
+         mid.y = ((y.2-y.1)/2) + y.1)  -> rr.dat
+
+mid.x.labs <- rr.dat %>%
+              dplyr::select(xbin.num, mid.x) %>%
+              distinct() %>%
+              filter(xbin.num %in% c(0, 10, 20, 30, 40, 50))
+
+mid.y.labs <- rr.dat %>%
+  dplyr::select(ybin.num, mid.y) %>%
+  distinct()%>%
+  filter(ybin.num %in% c(0, 10, 20, 30, 40, 50))
+
+ggplot(rr.dat) + 
+  geom_tile(aes(y = ybin.num, x = xbin.num, fill = mean.resid))+
   facet_wrap(~year) +
   scale_fill_gradient2(midpoint = 0, high = "#6B6100", low = "#4F53B7", mid = "#F1F1F1", name = "Residuals")+
   ggtitle("Env (AUC=0.95, Spearman's rho=0.46, PDE=0.36)")+
   theme_bw() + 
+  scale_x_continuous(breaks = mid.x.labs$xbin.num, labels = round(mid.x.labs$mid.x))+ 
+  scale_y_continuous(breaks = mid.y.labs$ybin.num, labels = round(mid.y.labs$mid.y))+ 
   xlab("Longitude bin")+
   ylab("Latitude bin")+
   theme(axis.title = element_text(size = 10),
@@ -749,16 +808,56 @@ colnames(rr) <- c("x", "y", "predicted", "residuals", "year")
 
 
 rr %>%
-  mutate(x_bin = cut_number(x, n = 50, labels = FALSE), y_bin = cut_number(y, n = 50, labels = FALSE)) %>%
-  group_by(x_bin, y_bin, year) %>%
-  reframe(mean.resid = mean(residuals))  -> pp
+  st_as_sf(., coords = c("x", "y"), crs = map.crs) %>%
+  st_transform(., crs.latlon) %>%
+  cbind(., st_coordinates(.)) %>%
+  as.data.frame(.) -> rr2
 
-ggplot(pp) + 
-  geom_tile(aes(y = y_bin, x = x_bin, fill = mean.resid))+
+rr2 %>%
+  mutate(x_bin = cut_number(X, n = 50, labels = FALSE), y_bin = cut_number(Y, n = 50, labels = FALSE)) %>%
+  group_by(x_bin, y_bin, year) %>%
+  reframe(mean.resid = mean(residuals)) -> pp
+
+rr2 %>%
+  mutate(x_bin = cut_number(X, n = 50), 
+         y_bin = cut_number(Y, n = 50)) %>%
+  group_by(x_bin, y_bin, year) %>%
+  reframe(mean.resid = mean(residuals))  -> pp2
+
+right_join(pp %>% rename(xbin.num = x_bin, ybin.num = y_bin), pp2) -> qq
+
+qq %>%
+  mutate(x_bin = case_when((grepl("\\[", x_bin) == TRUE) ~ gsub("\\[|\\]", "", x_bin),
+                           (grepl("\\(", x_bin) == TRUE) ~ gsub("\\(|\\]", "", x_bin),
+                           TRUE ~ x_bin),
+         y_bin = case_when((grepl("\\[", y_bin) == TRUE) ~ gsub("\\[|\\]", "", y_bin),
+                           (grepl("\\(", y_bin) == TRUE) ~ gsub("\\(|\\]", "", y_bin),
+                           TRUE ~ y_bin),
+         x.1 = as.numeric(as.character(str_sub(str_split_fixed(x_bin, ",", 2)[,1]))),
+         x.2 = as.numeric(as.character(str_sub(str_split_fixed(x_bin, ",", 2)[,2]))),
+         y.1 = as.numeric(as.character(str_sub(str_split_fixed(y_bin, ",", 2)[,1]))),
+         y.2 = as.numeric(as.character(str_sub(str_split_fixed(y_bin, ",", 2)[,2]))),
+         mid.x = ((x.1-x.2)/2) + x.2,
+         mid.y = ((y.2-y.1)/2) + y.1)  -> rr.dat
+
+mid.x.labs <- rr.dat %>%
+  dplyr::select(xbin.num, mid.x) %>%
+  distinct() %>%
+  filter(xbin.num %in% c(0, 10, 20, 30, 40, 50))
+
+mid.y.labs <- rr.dat %>%
+  dplyr::select(ybin.num, mid.y) %>%
+  distinct()%>%
+  filter(ybin.num %in% c(0, 10, 20, 30, 40, 50))
+
+ggplot(rr.dat) + 
+  geom_tile(aes(y = ybin.num, x = xbin.num, fill = mean.resid))+
   facet_wrap(~year) +
   scale_fill_gradient2(midpoint = 0, high = "#6B6100", low = "#4F53B7", mid = "#F1F1F1", name = "Residuals")+
   ggtitle("Env+Space+Time (AUC=0.95, Spearman's rho=0.46, PDE=0.35)")+
   theme_bw() + 
+  scale_x_continuous(breaks = mid.x.labs$xbin.num, labels = round(mid.x.labs$mid.x))+ 
+  scale_y_continuous(breaks = mid.y.labs$ybin.num, labels = round(mid.y.labs$mid.y))+ 
   xlab("Longitude bin")+
   ylab("Latitude bin")+
   theme(axis.title = element_text(size = 10),
