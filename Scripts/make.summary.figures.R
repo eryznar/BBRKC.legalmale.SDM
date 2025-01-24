@@ -74,7 +74,7 @@ source("./Scripts/load.libs.params.R")
     #PA
     BB_strata_buff <- buffer(BB_strata, width = -1000)
     
-    spatpred_b <- suppressWarnings(predict(preds2, # raster stack 
+    spatpred_b <- suppressWarnings(terra::predict(preds2, # raster stack 
                                            model_b, # fitted model
                                            n.trees=model_b$gbm.call$best.trees, # see help
                                            #factors = f,
@@ -87,7 +87,7 @@ source("./Scripts/load.libs.params.R")
     
     
     #Abund
-    spatpred_p <- suppressWarnings(predict(preds2, # raster stack 
+    spatpred_p <- suppressWarnings(terra::predict(preds2, # raster stack 
                                            model_p, # fitted model
                                            n.trees=model_p$gbm.call$best.trees, # see help
                                            #factors = ff,
@@ -98,6 +98,9 @@ source("./Scripts/load.libs.params.R")
                                      mask(BB_strata_buff, touches = FALSE) %>%
                                      na.omit())
     
+    spatpred_p <- spatpred_p * theta # to control for overdispersion of abundance parameter
+
+  
     # Multiply binomial raster by abundance raster (part of delta model framework)
     spatpred <- spatpred_b * spatpred_p
    
@@ -708,7 +711,7 @@ source("./Scripts/load.libs.params.R")
   # Calculate AUC -------------------------------------------------------------
   pred.b <- predict.gbm(lm.F.modelb, # fitted model to predict
                         test2, # data to predict to
-                        n.trees=model_b$gbm.call$best.trees, # see help
+                        n.trees=lm.F.modelb$gbm.call$best.trees, # see help
                         type="response") # predict probabilities
   
   obs <- test2$PA 
@@ -723,11 +726,12 @@ source("./Scripts/load.libs.params.R")
   # Calculate RMSE ------------------------------------------------------------
   pred.p <- predict.gbm(lm.F.modelp, # fitted model to predict
                         test2 %>% filter(catch_pp>0), # data to predict to
-                        n.trees=model_p$gbm.call$best.trees, # see help
+                        n.trees=lm.F.modelp$gbm.call$best.trees, # see help
                         type="response") # predict probabilities
   
+  
   obs <- test2$catch_pp[which(test2$catch_pp >0)]
-  pred <- pred.p
+  pred <- pred.p * theta # to control for overdispersion of abundance parameter
   
   RMSE <- sqrt(mean((obs-pred.p)^2))
   
@@ -1062,7 +1066,7 @@ ggsave(plot =catch_ppts, paste0("./Figures/Fall.LM.catchppts.png"),
     #PA
     BB_strata_buff <- buffer(BB_strata, width = -1000)
     
-    spatpred_b <- suppressWarnings(predict(preds, # raster stack 
+    spatpred_b <- suppressWarnings(terra::predict(preds, # raster stack 
                                            model_b, # fitted model
                                            n.trees=model_b$gbm.call$best.trees, # see help
                                            #factors = f,
@@ -1074,7 +1078,7 @@ ggsave(plot =catch_ppts, paste0("./Figures/Fall.LM.catchppts.png"),
                                      na.omit())
     
     #Abund
-    spatpred_p <- suppressWarnings(predict(preds, # raster stack 
+    spatpred_p <- suppressWarnings(terra::predict(preds, # raster stack 
                                            model_p, # fitted model
                                            n.trees=model_p$gbm.call$best.trees, # see help
                                            #factors = ff,
@@ -1181,17 +1185,15 @@ ggsave(plot =catch_ppts, paste0("./Figures/Fall.LM.catchppts.png"),
   ggplot2::ggplot() +
     ggplot2::geom_sf(data = percpoly2, ggplot2::aes(fill = as.factor(layer)), color = NA) +
     ggplot2::geom_sf(data = st_as_sf(percdummy3),fill=NA, size = .3) +
+   
+    ggplot2::geom_sf(data = st_as_sf(westBLZ),
+                     fill = NA,
+                     color = "blue",
+                     linewidth = 1)+
     ggplot2::geom_sf(data = st_as_sf(area512),
                      fill = NA,
                      color = "purple",
                      linewidth = 0.75)+
-    ggplot2::geom_sf(data = st_as_sf(BB_strata),
-                     fill = NA,
-                     color = "black",
-                     linewidth = 1)+
-    ggplot2::geom_sf(data = region_layers$akland, 
-                     fill = "grey70", 
-                     color = "black")+
     ggplot2::geom_sf(data = st_as_sf(RKCSA),
                      fill = NA,
                      color = "red",
@@ -1200,6 +1202,13 @@ ggsave(plot =catch_ppts, paste0("./Figures/Fall.LM.catchppts.png"),
                      fill = NA,
                      color = "red",
                      linewidth = 0.75)+
+    ggplot2::geom_sf(data = st_as_sf(BB_strata),
+                     fill = NA,
+                     color = "black",
+                     linewidth = 1)+
+    ggplot2::geom_sf(data = region_layers$akland, 
+                     fill = "grey70", 
+                     color = "black")+
     coord_sf(xlim = plot.boundary$x,
              ylim = plot.boundary$y)+
     geom_text(data = year_lab, aes(x=X, y=Y, label= lab), fontface = "bold", size=4) +
@@ -1237,8 +1246,14 @@ ggsave(plot =catch_ppts, paste0("./Figures/Fall.LM.catchppts.png"),
   sp.dat %>%
     mask(., RKCSA_sub) -> RKCSA.hot
   
+  westBLZ <- westBLZ - RKCSA_sub - area512
+  
+  sp.dat %>%
+    mask(., westBLZ) -> BLZ.hot
+  
   sum(a512.hot$catch_pp)/total.hot -> a512.perc.hot
   sum(RKCSA.hot$catch_pp)/total.hot -> RKCSA.perc.hot
+  sum(BLZ.hot$catch_pp)/total.hot -> BLZ.perc.hot
 
  # Run function for cold stanza
   hotcold(preds.cold, lm_df, lm.F.modelb, lm.F.modelp, predict_yr, "Cold") -> out.cold
@@ -1256,8 +1271,12 @@ ggsave(plot =catch_ppts, paste0("./Figures/Fall.LM.catchppts.png"),
   sp.dat %>%
     mask(., RKCSA_sub) -> RKCSA.cold
   
+  sp.dat %>%
+    mask(., westBLZ) -> BLZ.cold
+  
   sum(a512.cold$catch_pp)/total.cold -> a512.perc.cold
   sum(RKCSA.cold$catch_pp)/total.cold -> RKCSA.perc.cold
+  sum(BLZ.cold$catch_pp)/total.cold -> BLZ.perc.cold
 
   # Arrange plots
   ggarrange(out.hot[[3]], out.cold[[3]], heights = c(1,1), nrow= 1, ncol = 2,
@@ -1265,3 +1284,96 @@ ggsave(plot =catch_ppts, paste0("./Figures/Fall.LM.catchppts.png"),
   
   ggsave(plot = yr.perc_rast_hotv.cold.stanza, "./Figures/F.LM.yrrast.hotvcold.stanza.png", height=3, width=6, units="in")
 
+
+### CLOSURE AREA MAP -----
+  # Load boundaries
+  st_read("C:/Users/emily.ryznar/Work/Documents/Winter survey/CPS1/Data/Closure areas/area512.shp") %>%
+    vect() ->  area512
+  
+  st_read(survey_gdb,layer="BycatchZone1") ->  zone1
+  
+  st_read(survey_gdb,layer="BB_District") -> bb_dist
+  
+  st_read(survey_gdb,layer="NBBTCA") ->  nbbtca
+  
+  map_layers <- region_layers
+  
+  vect(zone1) - area512 - RKCSA_sub -> zone1.2
+  
+  # Transform plot boundary
+  plot.boundary.untrans <- data.frame(y = c(54, 59.5), 
+                                      x = c(-168, -158)) 
+  
+  plot.boundary <-  plot.boundary.untrans %>%
+    sf::st_as_sf(coords = c(x = "x", y = "y"), crs = sf::st_crs(4326)) %>%
+    sf::st_transform(crs = map.crs) %>%
+    sf::st_coordinates() %>%
+    as.data.frame() %>%
+    dplyr::rename(x = X, y = Y) # plot boundary projected
+  
+  breaks.x <- map_layers$lon.breaks[(map_layers$lon.breaks >= plot.boundary.untrans$x[1] &  # set lon breaks
+                                       map_layers$lon.breaks < plot.boundary.untrans$x[2]) == TRUE]
+  
+  breaks.y <- map_layers$lat.breaks[(map_layers$lat.breaks > plot.boundary.untrans$y[1] & # set lat breaks
+                                       map_layers$lat.breaks < plot.boundary.untrans$y[2]) == TRUE]
+  # Plot
+  ggplot() +
+    geom_sf_pattern(data = st_as_sf(nbbtca), 
+                     mapping = aes(pattern = as.factor(5)), 
+                     color = "black",
+                     linewidth = 1,
+                    alpha = 0.5,
+                    pattern_fill2 = NA)+
+    geom_sf(data = st_transform(map_layers$bathymetry, map.crs), color=alpha("grey70")) +
+    ggplot2::geom_sf(data = st_as_sf(zone1.2), 
+                     mapping = aes(fill = as.factor(1)), 
+                     color = "black",
+                     linewidth = 1,
+                     alpha = 0.5)+
+    geom_sf(data = st_as_sf(RKCSA_sub), mapping = aes(fill = as.factor(2)), color = "black", alpha= 0.5, linewidth = 1) +
+    geom_sf(data = st_as_sf(RKCSA), aes(fill = as.factor(3)),  color = "black", alpha =0.5, linewidth = 0.5) +
+    geom_sf(data = st_as_sf(bb_dist), fill = NA, aes(colour = "black"), linewidth = 1) +
+    ggplot2::geom_sf(data = st_as_sf(area512), 
+                     mapping = aes(fill = as.factor(4)), 
+                     color = "black",
+                     linewidth = 1,
+                     alpha = 0.5)+
+    scale_pattern_manual(values= c("stripe"), name = "", label = "Nearshore Bristol Bay trawl closure area")+
+    #geom_sf(data = st_as_sf(zone1$Shape), fill = "blue", alpha = 0.15, aes(color = "black"), linewidth = 0.5) +
+    geom_sf(data = st_transform(map_layers$akland, map.crs), fill = "grey80") +
+    scale_x_continuous(breaks = c(-165, -160), labels = paste0(c(165, 160), "°W"))+
+    scale_y_continuous(breaks = c(54, 56, 58), labels = paste0(c(54, 56, 58), "°N"))+
+    scale_color_manual(values = c("black"), 
+                       labels = c("Bristol Bay management boundary"),
+                       name = "") +
+    scale_fill_manual(values = c("3" = alpha("firebrick", 0.25), 
+                                 "2" = alpha("indianred1", 0.5),
+                                 "4" = alpha("purple", 0.5), 
+                                "1"= alpha("cadetblue", 0.5)),
+                      labels = c("Bycatch limitation zone 1", 
+                                 "Red King Crab Savings Subarea",
+                                 "Red King Crab Savings Area", 
+                                 "NMFS Statistical Area 512"),
+                      name = "")+
+    coord_sf(xlim = plot.boundary$x,
+             ylim = plot.boundary$y) +
+    geom_sf_text(sf::st_as_sf(data.frame(lab= c("50m", "100m"), 
+                                         x = c(-165.8, -166.2), y = c(58.3, 56.5)),
+                              coords = c(x = "x", y = "y"), crs = sf::st_crs(4326)) %>%
+                   sf::st_transform(crs = map.crs),
+                 mapping = aes(label = lab))+
+    guides(color = guide_legend(nrow = 3), fill = guide_legend(nrow = 2), pattern_angle = guide_legend(nrow = 2), 
+           pattern_type = "none") +
+    theme_bw() +
+    theme(axis.title = element_blank(),
+          axis.text = element_text(size = 12),
+          legend.text = element_text(size = 12),
+          legend.title = element_text(size = 10),
+          legend.position = "bottom",
+          legend.direction = "horizontal",
+          plot.title = element_text(face = "bold", size = 15),
+          plot.subtitle = element_text(size = 12),
+          panel.grid.major = element_blank())
+  
+  ggsave("./Figures/study_map.png", height=7, width=14, units="in")
+  

@@ -21,6 +21,7 @@ library(ggrepel)
 library(geosphere)
 library(usdm)
 library(statip)
+library(ggpattern)
 
 
 ### SET SPATIAL DETAILS ---------------------------------------------------------
@@ -50,6 +51,14 @@ st_read("./Data/Closure areas/RKCSA.shp") %>%
 
 st_read("./Data/Closure areas/area512.shp") %>%
   vect() -> area512
+st_read("./Data/Closure areas/fullBLZ.shp") %>%
+  vect() -> fullBLZ
+
+st_read("./Data/Closure areas/BLZwestof162.shp") %>%
+  vect() -> westBLZ
+
+st_read("./Data/Closure areas/NBBTCA.shp") %>%
+  vect() -> NBBTCA
 
 
 # OTHER PARAMETERS --------------------------------------------------------------
