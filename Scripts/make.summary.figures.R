@@ -444,6 +444,10 @@ source("./Scripts/load.libs.params.R")
       #                  color = alpha("white", 0.8),
       #                  linewidth = 1,
       #                  linetype = "dashed")+
+      ggplot2::geom_sf(data = st_as_sf(westBLZ),
+                       fill = NA,
+                       color = "blue",
+                       linewidth = lw)+
       ggplot2::geom_sf(data = st_as_sf(BB_strata),
                        fill = NA,
                        color = "black",
@@ -491,9 +495,20 @@ source("./Scripts/load.libs.params.R")
       mask(., area512) -> a512tot
     
     sp.dat %>%
+      mask(., westBLZ) -> BLZtot
+    
+    sp.dat %>%
       mask(., RKCSA_sub) -> RKCSAtot
     
-    dat <- data.frame(total = total, a512perc = sum(a512tot$catch_pp)/total, RKCSAperc=sum(RKCSAtot$catch_pp)/total, year = plot_yrs[ii])
+    dat <- data.frame(total = total, 
+                      tot_dens = total/((st_area(st_as_sf(BB_strata)))),
+                      a512dens = (sum(a512tot$catch_pp))/((st_area(st_as_sf(area512)))),
+                      BLZdens = (sum(BLZtot$catch_pp))/((st_area(st_as_sf(westBLZ)))),
+                      RKCSAdens = (sum(RKCSAtot$catch_pp))/((st_area(st_as_sf(RKCSA_sub)))),
+                      a512perc = sum(a512tot$catch_pp)/total, 
+                      RKCSAperc=sum(RKCSAtot$catch_pp)/total, 
+                      BLZperc=sum(BLZtot$catch_pp)/total,
+                      year = plot_yrs[ii])
     
     perc.dat <- rbind(perc.dat, dat)
     
@@ -640,6 +655,10 @@ source("./Scripts/load.libs.params.R")
                      fill = NA,
                      color = "purple",
                      linewidth = 1.5)+
+    ggplot2::geom_sf(data = st_as_sf(westBLZ),
+                     fill = NA,
+                     color = "blue",
+                     linewidth = 1.5)+
     ggplot2::geom_sf(data = st_as_sf(BB_strata), 
                      fill = NA, 
                      color = "black",
@@ -702,6 +721,26 @@ source("./Scripts/load.libs.params.R")
   MakeDotPlot(lm_df, "F", c(1997:2019, 2021:2023)) -> dot_out
 
   MakePredictionRaster(preds, model_b, model_p, resp_data, seas, predict_yr) -> out
+  
+  out$perc.dat %>%
+    mutate(total_m2 = total,
+           tot_den_km2 = tot_dens*1e6,
+           a512dens_km2 = a512dens*1e6,
+           BLZdens_km2 = BLZdens*1e6,
+           RKCSAdens_km2 = RKCSAdens * 1e6) -> out2
+  
+  write.csv(out2, "./Output/predicted_probdens2018-2023.csv")
+  
+  ggplot(out2, aes(year, total/1e6))+
+    geom_line()
+  
+  out$spatpred_df %>%
+    group_by(year) %>%
+    reframe(abundance = sum(catch_pp)) -> tt
+  
+  ggplot(tt, aes(year, abundance/1e6))+
+    geom_line()+
+    scale_x_continuous(breaks = seq(1998, 2023, by = 2))
 
 
 ### EVALUATE MODELS ----------------------------------------------------------------------------------
