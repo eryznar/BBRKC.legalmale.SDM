@@ -715,39 +715,86 @@ ggplot() +
     dat %>%
       filter(model == "Directed fishery") %>%
       dplyr::select(x, y, value) %>%
+      mutate(value = rescale(value)) %>% # rescaling for warren's I and Schoener's D
       rast(.) %>%
       raster(.) -> df
     
     dat %>% 
       filter(model == "Bycatch") %>%
       dplyr::select(x, y, value) %>%
+      mutate(value = rescale(value)) %>%
       rast(.) %>%
       raster(.) -> byc
     
     
     resample(byc, df) -> byc
     
-    corr.map <- SpatialPack::modified.ttest(scale(as.data.frame(byc)$value), 
-                                             scale(as.data.frame(df)$value),
-                                             coords = coordinates(byc))
+    over <- ENMTools::raster.overlap(scale(rast(df)), scale(rast(byc)))
     
+  
+    n_bins <- 1024 #arbitrary
+    
+    bins <- seq(floor(min(na.omit(c(values(byc), values(df))))), ceiling(max(c(na.omit(values(byc), values(df))))), length = n_bins)
+    
+    # Calculate hellinger's distance
+    hd<- hell_dist(scale(na.omit(values(byc))), scale(na.omit(values(df))), from=bins[1], to=bins[n_bins])
+    #hd <- hellinger(all.BB, pref.samp, lower = -Inf, upper = Inf)
+    
+  
     ss <- data.frame(year = yrs[ii], 
-                     corr = round(corr.map$corr, 2),
-                     p = round(corr.map$p.value, 2))
+                     corr = round(over$rank.cor, 2),
+                     I = round(over$I, 2),
+                     SD = round(over$D, 2),
+                     HD = hd)
     
     corr.df <- rbind(corr.df, ss)
   }
   
+corr.df %>%
+  filter(year == 2021) %>%
+  mutate(year = 2020,
+         I = NA,
+         corr = NA,
+         HD = NA,
+         SD = NA) -> dummy
+
+rbind(dummy, corr.df) -> corr.df
+  
+ggplot()+
+  geom_line(corr.df, mapping = aes(year, corr, color = "1"), linewidth = 1)+
+  geom_point(corr.df, mapping = aes(year, corr, color = "1"), size = 1.5)+
+  # geom_line(corr.df, mapping = aes(year, I, color = "2"), linewidth = 1)+
+  # geom_point(corr.df, mapping = aes(year, I, color = "2"), size = 1.5)+
+  geom_line(corr.df, mapping = aes(year, SD, color = "3"), linewidth = 1)+
+  geom_point(corr.df, mapping = aes(year, SD, color = "3"), size = 1.5)+
+  theme_bw()+
+  scale_color_manual(values = c("darkgoldenrod", "#009B95"), 
+                     labels = c("Spearman's rho", "Schoener's D"),
+                     name = "")+
+  ylab("Value")+
+  xlab("")+
+  theme(axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.y = element_text(size = 12),
+        axis.title.x = element_blank(),
+        legend.text = element_text(size = 12)) -> p1
 
   
-  resample(early.bycatch, early.df) -> early.bycatch
-  
-  as.data.frame(early.bycatch)
-  
-  
-  corr.map1 <- SpatialPack::modified.ttest(scale(as.data.frame(early.bycatch)$value), 
-                                           scale(as.data.frame(early.df)$value),
-                                           coords = coordinates(early.bycatch))
+# Plot
+ggplot()+
+  geom_line(overlap.df, mapping = aes(year, total.overlap), color = "black", linewidth = 1)+
+  geom_point(overlap.df, mapping = aes(year, total.overlap), color = "black", size = 2)+
+  theme_bw()+
+  ylab("Percent overlap")+
+  xlab("Year")+
+  theme(axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title = element_text(size = 12)) -> p2
+
+p1 + p2 + plot_layout(nrow = 2)
+
+ggsave("./Figures/bycatchVdirectedfish_corrTS.png", width = 6, height = 6, units = "in")
+
   
 
 ### Correlations between observed and predicted ----
