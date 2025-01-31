@@ -67,3 +67,17 @@ thres <- 0.6626053
 
 readRDS("./Models/nb_model.rda") -> nb_model
 theta <- nb_model$theta # dispersion parameter from negative binomial model
+
+
+norm_vec <- function(x) sqrt(sum(x^2))
+
+hell_dist <- function (p, q, from, to, n = 1024) {
+  P <- density(p, kernel = "gaussian", from = from, to = to, n = n)
+  p <- P$y
+  p <- p / sum(p)
+  Q <- density(q, kernel = "gaussian", from = from, to = to, n = n)
+  q <- Q$y
+  q <- q / sum(q)
+  hd <- norm_vec(sqrt(p) - sqrt(q)) / sqrt(2)
+  hd
+}
