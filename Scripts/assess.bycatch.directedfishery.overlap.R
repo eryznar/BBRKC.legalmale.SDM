@@ -1,16 +1,193 @@
 source("./Scripts/load.libs.params.R")
 
+
+
 ### Bycatch vs. directed fishery overlap-----
-pred.df <- rbind(read.csv("./Output/spatial_predictions.csv") %>% 
+pred.df <- rbind(read.csv(paste0(dir, "spatial_predictions.csv")) %>% 
                    mutate(model = "Directed fishery") %>%
                    dplyr::select(!X) %>%
                    rename(value = catch_pp),
-                 read.csv("./Data/predicted_LMbycatch.csv") %>% 
+                 read.csv(paste0(dir, "predicted_LMbycatch.csv")) %>% 
                    mutate(model = "Bycatch") %>%
                    dplyr::select(!X) %>%
                    rename(value = mean_count))
 
-# Spatial maps by period
+### Weighted coordinates ---
+# mask df data to where trawl fishing can occur
+pred.df %>%
+  st_as_sf(., coords = c("x", "y"), crs = map.crs) -> qq
+
+mask(vect(qq), NBBTCA, inverse = TRUE) -> kk
+mask(kk, RKCSA, inverse = TRUE) -> tt
+
+# change back to df
+cbind(crds(tt), as.data.frame(tt)) -> pred.df2
+
+# Set up list to store maps
+wtdcrds.df <- data.frame()
+
+yy <- c(1998:2019, 2021:2023)
+
+# Calculate encounter percentiles
+for(ii in 1:length(yy)){
+  # BYCATCH
+  bycatch <-  pred.df %>%
+    filter(year %in% yy[ii], model == "Bycatch") %>%
+    group_by(x, y) %>%
+    reframe(value = mean(value))
+  
+  # Find plotting breaks
+  quantiles = c(.05, .25, .5, .75)
+  quants<-sort(unique(c(0,quantiles,1)))
+  
+  threshold <- 0.0513
+  
+  sample <- stats::na.omit(bycatch$value)
+  sample[sample <= threshold] <- NA
+  perc.breaks <- stats::quantile(sample, probs = quants, na.rm = TRUE, names = FALSE)
+  perc.breaks[1]<-0
+  perc.breaks[length(perc.breaks)]<-Inf
+  
+  # Make raster again
+  bycatch %>%
+    rast() %>%
+    raster() -> bycatch.rast
+  
+  # Set crs
+  crs(bycatch.rast) <- map.crs
+  
+  # Cut the prediction map by the breaks
+  perc.map <- raster::cut(bycatch.rast, breaks = perc.breaks)
+  
+  # set up the factor maps
+  perc.vals <- raster::getValues(perc.map)
+  perc.vals[perc.vals == 1] <- NA
+  
+  # convert the raster to polygons
+  percpoly0 <- stars::st_as_stars(perc.map)
+  percpoly <- sf::st_as_sf(percpoly0,merge = TRUE)
+  bycatch.poly <- percpoly[percpoly$layer %in% 4:5, ]
+  
+  st_union(bycatch.poly) -> byc.poly
+  
+  #byc.vals <- mask(bycatch.rast, bycatch.poly)
+  byc.vals <- bycatch.rast
+  
+  top.byc <- cbind(coordinates(byc.vals), as.data.frame(byc.vals))
+  
+  # DIRECTED FISHERY
+  direct.fish <-  pred.df2 %>%
+    filter(year %in% yy[ii], model == "Directed fishery") %>%
+    group_by(x, y) %>%
+    reframe(value = mean(value))
+  
+  # Mask to areas where bycatch can occur
+  direct.fish %>%
+    st_as_sf(., coords = c("x", "y"), crs = map.crs) -> qq
+  
+  mask(vect(qq), NBBTCA, inverse = TRUE) -> kk
+  mask(kk, RKCSA, inverse = TRUE) -> tt
+  
+  # change back to df
+  cbind(crds(tt), as.data.frame(tt)) -> direct.fish
+  
+  # Find plotting breaks
+  quantiles = c(.05, .25, .5, .75)
+  quants<-sort(unique(c(0,quantiles,1)))
+  
+  threshold <- 0.0513
+  
+  sample <- stats::na.omit(direct.fish$value)
+  sample[sample <= threshold] <- NA
+  perc.breaks <- stats::quantile(sample, probs = quants, na.rm = TRUE, names = FALSE)
+  perc.breaks[1]<-0
+  perc.breaks[length(perc.breaks)]<-Inf
+  
+  # Make raster again
+  direct.fish%>%
+    rast() %>%
+    raster() -> direct.fishrast
+  
+  # Set crs
+  crs(direct.fishrast) <- map.crs
+  
+  # Resample to bycatch raster resolution (coarser)
+  direct.fishrast <- resample(direct.fishrast, bycatch.rast)
+  
+  # Cut the prediction map by the breaks
+  perc.map <- raster::cut(direct.fishrast, breaks = perc.breaks)
+  
+  # set up the factor maps
+  perc.vals <- raster::getValues(perc.map)
+  perc.vals[perc.vals == 1] <- NA
+  
+  # convert the raster to polygons
+  percpoly0 <- stars::st_as_stars(perc.map)
+  percpoly <- sf::st_as_sf(percpoly0,merge = TRUE)
+  directfish.poly <- percpoly[percpoly$layer %in% 4:5, ]
+  
+  st_union(directfish.poly) -> df.poly
+  
+  #df.vals <- mask(direct.fishrast, directfish.poly)
+  df.vals <- direct.fishrast
+  
+  top.df <- cbind(coordinates(df.vals), as.data.frame(df.vals))
+  
+  thres <- mean(na.omit(top.df$value))
+  
+  
+  # Join data and calc wtd crds
+  rbind(top.byc %>% mutate(model = "Bycatch"), top.df %>% mutate(model = "Direct.fish")) %>%
+    filter(is.na(value) == FALSE) %>%
+   mutate(year = yy[ii]) %>%
+   group_by(year, model) %>%
+   mutate(total = sum(value),
+          norm_val = value/total) %>%
+   ungroup() %>%
+   group_by(year, model) %>%
+   reframe(N = n(),
+           mean_weighted_lat = sum(y*norm_val)/sum(norm_val),
+           mean_weighted_lon = sum(x*norm_val)/sum(norm_val)) -> wtd.crds
+  
+  wtdcrds.df <- rbind(wtdcrds.df, wtd.crds)
+  
+}
+
+wtdcrds.df %>%
+  group_by(model) %>%
+  mutate(scale_lat = scale(mean_weighted_lat)[,1],
+         scale_lon = scale(mean_weighted_lon)[,1]) %>%
+  ungroup() -> wtd.crds2
+
+# Plot
+ggplot(wtd.crds2, aes(year, scale_lat, color = model)) +
+  geom_line(linewidth = 1)+
+  # geom_line(wtd_crds2, mapping = aes(year, bycatch_wtd_lat, color = as.factor(1)), linewidth = 1)+
+  # geom_line(wtd_crds2, mapping = aes(year, directfish_wtd_lat, color = as.factor(2)), linewidth = 1) + 
+  theme_bw()+
+  scale_x_continuous(breaks = seq(1998, 2023, by = 2))+
+  scale_color_manual(values = c("darkturquoise", "darkgoldenrod"), labels = c("Bycatch",
+                                                                              "Directed fishery"),
+                     name = "")+
+  ylab("Weighted latitude")
+
+wtd.crds2 %>%
+  dplyr::select(year, model, scale_lat) %>%
+  pivot_wider(names_from= model, values_from = scale_lat) -> jj
+
+
+cor.test.PP(jj$Bycatch, jj$Direct.fish) -> out
+
+ggplot(wtd.crds2, aes(scale_lon, scale_lat, color = model))+
+  #geom_point()+
+  theme_bw()+
+  geom_text(aes(label = year))+
+  xlab("Bycatch weighted latitude")+
+  ylab("Directed fishery weighted latitude")
+  
+
+
+# Spatial maps by period ---
 pp <- c("1998:2005", "2006:2014", "2015:2023")
 
 
