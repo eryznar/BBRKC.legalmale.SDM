@@ -64,7 +64,7 @@ st_read(paste0(dir, "Closure areas/NBBTCA.shp")) %>%
 
 
 # OTHER PARAMETERS --------------------------------------------------------------
-lm_iter <- 8
+lm_iter <- 6
 thres <- 0.6626053
 
 readRDS("./Models/nb_model.rda") -> nb_model

@@ -98,7 +98,8 @@ westBLZ <- westBLZ - RKCSA_sub - area512
 bind_rows(list(st_as_sf(RKCSA_sub) %>% mutate(AREA = "Red King Crab Savings Area"), 
                st_as_sf(area512) %>% mutate(AREA = "NMFS Statistical Area 512"),
                st_as_sf(westBLZ) %>% mutate(AREA = "Bycatch Limitation Zone 1 (west of 162°)"),
-               st_as_sf(NBBTCA) %>% mutate(AREA = "Nearshore Bristol Bay trawl closure area"))) -> closure_areas
+               st_as_sf(NBBTCA) %>% mutate(AREA = "Nearshore Bristol Bay trawl closure area"))) %>%
+  mutate(KM2 = as.numeric(st_area(.)/1e6)) -> closure_areas
 
 # Join with spatial predictions df
 spat.df %>%
@@ -110,27 +111,33 @@ spat.df %>%
   dplyr::select(!c(X, FID, geometry)) %>%
   mutate(AREA = case_when((is.na(AREA) == TRUE) ~ "Other Bristol Bay",
                           TRUE ~ AREA)) %>%
-  filter(AREA %in% c("Bycatch Limitation Zone 1 (west of 162°)", "Red King Crab Savings Area", "NMFS Statistical Area 512"))-> area.df
+  filter(AREA %in% c("Bycatch Limitation Zone 1 (west of 162°)", "Red King Crab Savings Area", "NMFS Statistical Area 512", "Other Bristol Bay"))-> area.df
 
-# calculate proportion in each area
+# calculate proportion and densityin each area
 area.df %>%
   group_by(year) %>%
-  mutate(total_catch = sum(catch_pp)) %>%
+  mutate(total_catch = sum(catch_pp),
+         total_area = sum(KM2)) %>%
   ungroup() %>%
   group_by(year, AREA) %>%
   reframe(total_catch = unique(total_catch),
+          total_area = unique(total_area),
           area_catch = sum(catch_pp),
-          prop_catch = area_catch/total_catch) -> prop.df
+          prop_catch = area_catch/total_catch,
+          area_density = area_catch/KM2) %>%
+  distinct()-> prop.df
 
 # join with sst anom df
 right_join(prop.df, anom.df %>% mutate(year = as.numeric(year)), by = "year") %>%
-  na.omit() %>%
+  #na.omit() %>%
   mutate(cc = case_when((year == 2017) ~ "Cold",
-                        TRUE ~ cc)) -> prop.sst.df
+                        TRUE ~ cc)) %>%
+  filter(is.na(AREA) == FALSE) -> prop.sst.df
 
 prop.sst.df %>%
   filter(year == 2019) %>%
-  mutate(year = 2020, total_catch = NA, area_catch = NA, prop_catch = NA, cc = "Warm") -> dummy
+  mutate(year = 2020, total_catch = NA, total_area = NA,
+         area_catch = NA, prop_catch = NA, area_density = NA, cc = "Warm") -> dummy
 
 rbind(prop.sst.df, dummy) -> prop.sst.df
 
@@ -176,9 +183,9 @@ ggplot()+
   
 ### Read in observations for directed fishery ----
 # Load data
-read.csv("./Output/lm_F_train.csv") %>%
+read.csv("./Output/New models/lm_F_train.csv") %>%
   dplyr::select(!X) -> train
-read.csv("./Output/lm_F_test.csv") %>%
+read.csv("./Output/New models/lm_F_test.csv") %>%
   dplyr::select(!X) -> test
 
 rbind(train, test) %>%
@@ -194,18 +201,25 @@ dat %>%
   dplyr::select(!c(FID, geometry)) %>%
   mutate(AREA = case_when((is.na(AREA) == TRUE) ~ "Other Bristol Bay",
                           TRUE ~ AREA)) %>%
-  filter(AREA %in% c("Bycatch Limitation Zone 1 (west of 162°)", "Red King Crab Savings Area", "NMFS Statistical Area 512"))-> area.df2
+  filter(AREA %in% c("Bycatch Limitation Zone 1 (west of 162°)", "Red King Crab Savings Area", "NMFS Statistical Area 512", "Other Bristol Bay"))-> area.df2
 
 # calculate proportion in each area
 area.df2 %>%
   group_by(predict_year) %>%
-  mutate(total_catch = sum(catch_pp)) %>%
+  mutate(total_catch = sum(catch_pp),
+         total_area = sum(KM2)) %>%
   ungroup() %>%
   group_by(predict_year, AREA) %>%
   reframe(total_catch = unique(total_catch),
+          total_area = unique(total_area),
           area_catch = sum(catch_pp),
-          prop_catch = area_catch/total_catch) %>%
-  dplyr::rename(year = predict_year) -> prop.df2
+          prop_catch = area_catch/total_catch,
+          area_density = area_catch/KM2) %>%
+  dplyr::rename(year = predict_year) %>%
+  distinct() %>%
+  filter(is.na(AREA) == FALSE) -> prop.df2
+
+
 
 # join with sst anom df
 right_join(prop.df2, anom.df %>% mutate(year = as.numeric(year)), by = "year") %>%
@@ -264,7 +278,7 @@ dat2 %>%
 top.yrs <- c(warm.yrs, cold.yrs)
 
 dat2 %>%
-  filter(year %in% top.yrs, type == "Predicted") -> dat3
+  filter(year %in% top.yrs, type == "Predicted", AREA != "Other Bristol Bay") -> dat3
 
 #Plot
 ggplot()+
@@ -290,7 +304,8 @@ ggplot()+
 
 ggsave(plot = plot.out, "./Figures/predicted_top5warmVcold_catchprop.png", width = 8.5, height = 6, units = "in")
 
-dat3 %>%
+dat2 %>%
+  filter(year %in% top.yrs, type == "Predicted") %>%
   group_by(AREA, cc) %>%
   reframe(prop_catch2 = mean(prop_catch),
           N = n(),
@@ -309,7 +324,7 @@ ggplot()+
   #scale_color_manual(values = c("#A1A6C8", "#CA9CA4"), labels = c("Cold", "Warm"), name = "")+
   scale_fill_manual(values = c("#A1A6C8", "#CA9CA4"), labels = c("Cold", "Warm"), name = "")+
   xlab("Year")+
-  ylab("Predicted abundance proportion")+
+  ylab("Predicted proportion of abundance")+
   theme(axis.text.x = element_text(size = 12),
         axis.text.y = element_text(size = 12),
         axis.title.y = element_text(size = 12),
@@ -321,118 +336,216 @@ ggplot()+
 
 ggsave(plot = plot.out3, "./Figures/predicted_top5warmVcold_AVGcatchprop.png", width = 8.5, height = 6, units = "in")
 
+# DOES AVERAGING SPATIAL DISTRIBUTIONS ACROSS ANOMALY YEARS PRODUCE THE SAME RESULTS AS IN FIG 6? ----
+### Read in spatial model predictions for directed fishery
+spat.df <- read.csv("./Output/spatial_predictions.csv")
 
+# Join with spatial predictions df
+right_join(spat.df, anom.df %>% mutate(year = as.numeric(year)), by = "year") %>%
+  na.omit() %>%
+  mutate(cc = case_when((year == 2017) ~ "Cold",
+                        TRUE ~ cc)) %>%
+  filter(year %in% top.yrs) -> sst.df
 
-### Correlations between observed and predicted ----
-dat2 %>%
-  filter(type == "Predicted") %>%
-  dplyr::select(year, total_catch) %>%
-  distinct() -> pp
+# calculate mean catch_pp
+sst.df %>%
+  group_by(cc, x, y) %>%
+  reframe(mean_catchpp = mean(catch_pp)) -> mean.df
 
-dat2 %>%
-  filter(type == "Observed") %>%
-  dplyr::select(year, total_catch) %>%
-  distinct() -> oo
+# Calculate and plot quantile distributions
+clim <- unique(mean.df$cc)
 
-# Predictions on test data
-# Read in training/testing data
-lm_F_train <- read.csv("./Output/lm_F_train.csv") %>%
-  filter(iter == lm_iter)
-test <- read.csv("./Output/lm_F_test.csv") %>%
-  filter(iter == lm_iter)
+poly.list <- list()
 
-# Best models 
-lm.F.modelb <- readRDS("./Models/lm.modelb.F.8.rda")
-lm.F.modelp <- readRDS("./Models/lm.modelp.F.8.rda")
-
-# Predict
-pred.b <- predict.gbm(lm.F.modelb, # fitted model to predict
-                      test, # data to predict to
-                      n.trees=lm.F.modelb$gbm.call$best.trees, # see help
-                      type="response") # predict probabilities
-
-pred.p <- predict.gbm(lm.F.modelp, # fitted model to predict
-                      test %>% filter(catch_pp>0), # data to predict to
-                      n.trees=lm.F.modelp$gbm.call$best.trees, # see help
-                      type="response") # predict probabilities
-
-# control for overdispersion
-pred.p2 <- pred.p * theta 
-
-pred.dat <- data.frame(test %>% filter(catch_pp>0), pred.p = pred.p2)
-# Bind predictions
-pred.b2 <- cbind(test, pred.b)
-
-pred.dat <- right_join(pred.dat, pred.b2) %>%
-  mutate(pred = pred.p * pred.b)
-
-#Pyper and Peterman code written by Franz Mueter, last updated 2000
-# Required function for cor.test.PP:
-N.effective <- function(mat) {
-  # written by Franz Mueter   Last modified: 23 October 2000
-  # function to compute effective sample size for pairwise correlations among 
-  # autocorrelated variables. 
-  # Based on Pyper & Peterman (1998). CJFAS 55:2127-2140.  Eq. (1)
-  # where summation was done over j = 1, ..., N/5
-  # 
-  # mat a matrix of variables, one variable per column
-  #
-  # function to compute simple estimates of autocorrelation up to lag N/5: 
-  # (Eq. 7 in Pyper & Peterman)
-  ar.fun <- function(x, max.lag = ceiling(sum(!is.na(x))/5)) {
-    res <- rep(NA, max.lag)
-    n <- length(x)
-    for(i in 1.:max.lag) {
-      x.bar <- mean(x, na.rm = T)
-      res[i] <- ((n/(n - i)) * sum((x[1:(n - i)] - x.bar) * (x[(i + 1):n] - x.bar), na.rm
-                                   = T))/sum((x - x.bar)^2, na.rm = T)
-    }
-    res
-  }
-  AR <- apply(mat, 2., ar.fun)
-  k <- ncol(mat)
-  if(is.matrix(AR)) {
-    AR1 <- vector("list", k)
-    for(i in 1:k) AR1[[i]] <- AR[, i]
-    AR <- AR1  
-  }
-  N <- t(!is.na(mat)) %*% (!is.na(mat))
-  N.lags <- ceiling(N/5.)
-  N.eff <- matrix(0., k, k)
-  # constrain effective N to smaller than or equal to actual N:
-  for(i in 1.:k) {
-    for(j in 1.:i) {
-      lags <- 1.:N.lags[i, j]
-      Nij <- N[i, j]
-      N.eff[i, j] <- round((1./Nij + 2./Nij * sum((Nij - lags)/Nij * AR[[i]][lags] * AR[[
-        j]][lags]))^(-1.))
-    }
-  }
-  j <- N.eff > N
-  N.eff[j] <- N[j]
-  N.eff + t(N.eff) - diag(diag(N.eff))
+for(ii in 1:length(clim)){
+  mean.df %>%
+    filter(cc == clim[ii]) -> plot.df
+  
+  # Find plotting breaks
+  quantiles = c(.05, .25, .5, .75)
+  quants<-sort(unique(c(0,quantiles,1)))
+  
+  threshold <- 0.0513
+  
+  sample <- stats::na.omit(plot.df$mean_catchpp)
+  sample[sample <= threshold] <- NA
+  perc.breaks <- stats::quantile(sample, probs = quants, na.rm = TRUE, names = FALSE)
+  perc.breaks[1]<-0
+  perc.breaks[length(perc.breaks)]<-Inf
+  
+  
+  # Make raster again
+  plot.df %>%
+    dplyr::select(!cc) %>%
+    rast() %>%
+    raster() -> spatpred
+  
+  # Set crs
+  crs(spatpred) <- map.crs
+  
+  # Cut the prediction map by the breaks
+  perc.map <- raster::cut(spatpred, breaks = perc.breaks)
+  
+  # set up the factor maps
+  perc.vals <- raster::getValues(perc.map)
+  perc.vals[perc.vals == 1] <- NA
+  
+  # convert the raster to polygons
+  percpoly0 <- stars::st_as_stars(perc.map)
+  percpoly <- sf::st_as_sf(percpoly0,merge = TRUE)
+  percpoly2 <- percpoly[percpoly$layer != 1, ]
+  
+  # we'll need a new outline
+  perc.dummy.raster <- raster::raster(perc.map)
+  perc.vals2 <- is.na(perc.vals) == F
+  perc.dummy.raster <- raster::setValues(perc.dummy.raster, values = perc.vals2)
+  
+  percdummy0 <- stars::st_as_stars(perc.dummy.raster)
+  percdummy <- sf::st_cast(sf::st_as_sf(percdummy0, merge = TRUE))
+  percdummy2 <- sf::st_transform(percdummy, sf::st_crs(map.crs))
+  
+  # Dropping the smallest areas
+  percdummy.poly <- sf::st_cast(percdummy2, "POLYGON")
+  areas <- sf::st_area(percdummy.poly)
+  
+  outside <- order(areas, decreasing = T)[1]
+  toosmall <- which(as.numeric(areas) < 10^8)
+  
+  perc.x <- percdummy2$layer[-c(outside, toosmall)]
+  perc.y <- percdummy2$geometry[-c(outside, toosmall)]
+  percdummy3 <- sf::st_sf(perc.x, perc.y) %>%
+    vect() %>%
+    crop(BB_strata)
+  
+  polys <- list(percpoly2, percdummy3)
+  
+  poly.list <- c(poly.list, polys)
+  
 }
 
-# Function to test for significant correlation between two time series
-# in the presence of autocorrelation in one or both of the series:
-cor.test.PP <- function(x, y) {
-  # Function to test for significant correlations between x and y, which may be autocorrelated, 
-  # using modified Chelton method after Pyper & Peterman (1998)
-  # Eqn. 3 with N*-2 degrees of freedom
-  N.eff <- N.effective(cbind(x, y))[1, 2]
-  r <- cor(x, y, use="pair")
-  fun <- function(alpha, N, r) {
-    t2 <- qt(1 - alpha/2, N - 2)^2
-    sqrt(t2/(t2 + N - 2)) - abs(r)
-  }
-  p.value <- uniroot(fun, c(1e-015, 0.9999), N = N.eff, r = r)$root
-  cat("Two-sided test\n\n")
-  c(correlation = r, P.value = p.value, N.eff= N.eff)
-}
 
-cor.test.PP(scale(pred.dat$pred), scale(pred.dat$catch_pp)) -> cor.out
+# Set up plot boundary
+plot.boundary.untrans <- data.frame(y = c(54.25, 59.25),
+                                    x = c(-167.5, -158)) # plot boundary unprojected
 
-plot(scale(pp$total_catch), type = "l", col = "blue")
-lines(scale(oo$total_catch), col = "red")
+plot.boundary <- plot.boundary.untrans %>%
+  sf::st_as_sf(coords = c(x = "x", y = "y"), crs = sf::st_crs(4326)) %>%
+  sf::st_transform(crs = map.crs) %>%
+  sf::st_coordinates() %>%
+  as.data.frame() %>%
+  dplyr::rename(x = X, y = Y) # plot boundary projected
 
-cor.out
+year_untrans <- data.frame(lab = c("Warm"),
+                           x = -158.3, y = 55.3)
+
+year_lab <- year_untrans %>%
+  sf::st_as_sf(coords = c(x = "x", y = "y"), crs = sf::st_crs(4326)) %>%
+  sf::st_transform(crs = map.crs) %>%
+  cbind(st_coordinates(.)) %>%
+  as.data.frame()
+
+# Map
+ggplot2::ggplot() +
+  ggplot2::geom_sf(data = poly.list[[1]], ggplot2::aes(fill = as.factor(layer)), color = NA) +
+  ggplot2::geom_sf(data = st_as_sf(poly.list[[2]]),fill=NA, size = .3) +
+  ggplot2::geom_sf(data = st_as_sf(area512),
+                   fill = NA,
+                   color = "purple",
+                   linewidth = 0.75)+
+  ggplot2::geom_sf(data = st_as_sf(westBLZ),
+                   fill = NA,
+                   color = "blue",
+                   linewidth = 1)+
+  ggplot2::geom_sf(data = st_as_sf(RKCSA),
+                   fill = NA,
+                   color = "red",
+                   linewidth = 0.75)+
+  ggplot2::geom_sf(data = st_as_sf(RKCSA_sub),
+                   fill = NA,
+                   color = "red",
+                   linewidth = 0.75)+
+  ggplot2::geom_sf(data = st_as_sf(BB_strata),
+                   fill = NA,
+                   color = "black",
+                   linewidth = 1)+
+  ggplot2::geom_sf(data = region_layers$akland, 
+                   fill = "grey70", 
+                   color = "black")+
+  coord_sf(xlim = plot.boundary$x,
+           ylim = plot.boundary$y)+
+  geom_text(data = data.frame(lab = c("Cold"),
+                              x = -158.3, y = 55.3) %>%
+              sf::st_as_sf(., coords = c(x = "x", y = "y"), crs = sf::st_crs(4326)) %>%
+              sf::st_transform(., crs = map.crs) %>%
+              cbind(st_coordinates(.)) %>%
+              as.data.frame(), 
+              aes(x=X, y=Y, label= lab), fontface = "bold", size=4) +
+  viridis::scale_fill_viridis(discrete = T, name = "Percentiles", labels = c("95%", "75%", "50%", "25%")) +
+  ggplot2::theme_bw() +
+  ggplot2:: theme(
+    panel.border = ggplot2::element_rect(color = "black", fill = NA),
+    panel.background = ggplot2::element_rect(fill = NA, color = "black"),
+    legend.key = ggplot2::element_rect(fill = NA, color = "grey30"),
+    #legend.position = legend.pos,
+    panel.grid.major = element_blank(),
+    axis.title = ggplot2::element_blank(), axis.text = ggplot2::element_text(size = 10),
+    legend.text = ggplot2::element_text(size = 11), legend.title = ggplot2::element_text(size = 11),
+    legend.position = "bottom", plot.title = element_text(size = 18),
+    plot.background = ggplot2::element_rect(fill = "white", color = "white")) -> perc_rast_cold
+
+# Map
+ggplot2::ggplot() +
+  ggplot2::geom_sf(data = poly.list[[3]], ggplot2::aes(fill = as.factor(layer)), color = NA) +
+  ggplot2::geom_sf(data = st_as_sf(poly.list[[4]]),fill=NA, size = .3) +
+  ggplot2::geom_sf(data = st_as_sf(area512),
+                   fill = NA,
+                   color = "purple",
+                   linewidth = 0.75)+
+  ggplot2::geom_sf(data = st_as_sf(westBLZ),
+                   fill = NA,
+                   color = "blue",
+                   linewidth = 1)+
+  ggplot2::geom_sf(data = st_as_sf(RKCSA),
+                   fill = NA,
+                   color = "red",
+                   linewidth = 0.75)+
+  ggplot2::geom_sf(data = st_as_sf(RKCSA_sub),
+                   fill = NA,
+                   color = "red",
+                   linewidth = 0.75)+
+  ggplot2::geom_sf(data = st_as_sf(BB_strata),
+                   fill = NA,
+                   color = "black",
+                   linewidth = 1)+
+  ggplot2::geom_sf(data = region_layers$akland, 
+                   fill = "grey70", 
+                   color = "black")+
+  coord_sf(xlim = plot.boundary$x,
+           ylim = plot.boundary$y)+
+  geom_text(data = data.frame(lab = c("Warm"),
+                              x = -158.3, y = 55.3) %>%
+              sf::st_as_sf(., coords = c(x = "x", y = "y"), crs = sf::st_crs(4326)) %>%
+              sf::st_transform(., crs = map.crs) %>%
+              cbind(st_coordinates(.)) %>%
+              as.data.frame(), 
+            aes(x=X, y=Y, label= lab), fontface = "bold", size=4) +
+  viridis::scale_fill_viridis(discrete = T, name = "Percentiles", labels = c("95%", "75%", "50%", "25%")) +
+  ggplot2::theme_bw() +
+  ggplot2:: theme(
+    panel.border = ggplot2::element_rect(color = "black", fill = NA),
+    panel.background = ggplot2::element_rect(fill = NA, color = "black"),
+    legend.key = ggplot2::element_rect(fill = NA, color = "grey30"),
+    #legend.position = legend.pos,
+    panel.grid.major = element_blank(),
+    axis.title = ggplot2::element_blank(), axis.text = ggplot2::element_text(size = 10),
+    legend.text = ggplot2::element_text(size = 11), legend.title = ggplot2::element_text(size = 11),
+    legend.position = "bottom", plot.title = element_text(size = 11),
+    plot.background = ggplot2::element_rect(fill = "white", color = "white")) -> perc_rast_warm
+
+
+# Arrange plots
+ggarrange(perc_rast_warm, perc_rast_cold, heights = c(1,1), nrow= 1, ncol = 2,
+          common.legend = TRUE, legend = "bottom") -> warm.v.coldrast
+
+ggsave(plot = warm.v.coldrast, "./Figures/anomaly_warmVcold_preds.png", height=3, width=6, units="in")
+

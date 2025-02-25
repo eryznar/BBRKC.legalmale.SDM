@@ -1,7 +1,8 @@
 source("./Scripts/load.libs.params.R")
 
 # Read in response data
-lm_df <- read.csv("./Data/legalmale_direct.fish.csv")
+lm_df <- read.csv("./Data/legalmale_direct.fish.csv") %>%
+  filter(season == "F")
 
 # Read in spatial covariates
 Fall_lm.preds <- rast("./Data/Fall_lm.preds.tif")

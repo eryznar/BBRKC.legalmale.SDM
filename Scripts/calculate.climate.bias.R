@@ -9,9 +9,9 @@ preds <- rast("./Data/Fall_lm.preds.tif")
 lm_df <- read.csv("./Data/legalmale_direct.fish.csv")
 
 # Read in training/testing data
-train <- read.csv("./Output/lm_F_train.csv") %>%
+train <- read.csv("./Output/New models/lm_F_train.csv") %>%
   filter(iter == lm_iter)
-test <- read.csv("./Output/lm_F_test.csv") %>%
+test <- read.csv("./Output/New models/lm_F_test.csv") %>%
   filter(iter == lm_iter)
 
 

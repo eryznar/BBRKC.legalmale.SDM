@@ -16,14 +16,14 @@ source("./Scripts/load.libs.params.R")
   lm_df <- read.csv("./Data/legalmale_direct.fish.csv")
   
   # Read in training/testing data
-  lm_F_train <- read.csv("./Output/lm_F_train.csv") %>%
+  lm_F_train <- read.csv("./Output/New models/lm_F_train.csv") %>%
     filter(iter == lm_iter)
-  lm_F_test <- read.csv("./Output/lm_F_test.csv") %>%
+  lm_F_test <- read.csv("./Output/New models/lm_F_test.csv") %>%
     filter(iter == lm_iter)
   
   # Best models 
-  lm.F.modelb <- readRDS("./Models/lm.modelb.F.8.rda")
-  lm.F.modelp <- readRDS("./Models/lm.modelp.F.8.rda")
+  lm.F.modelb <- readRDS("./Models/New models/lm.modelb.F.6.rda")
+  lm.F.modelp <- readRDS("./Models/New models/lm.modelp.F.6.rda")
 
 ### LOAD FUNCTIONS ---------------------------------------------------------------------------------------
   # Prediction raster using raster stack of predictors
@@ -722,6 +722,8 @@ source("./Scripts/load.libs.params.R")
 
   MakePredictionRaster(preds, model_b, model_p, resp_data, seas, predict_yr) -> out
   
+  write.csv(out$spatpred_df, "./Output/spatial_predictions.csv")
+  
   out$perc.dat %>%
     mutate(total_m2 = total,
            tot_den_km2 = tot_dens*1e6,
@@ -851,14 +853,15 @@ source("./Scripts/load.libs.params.R")
   
   unique(top_p_df$var) -> top_p_names
   
-  top_p_names2 <- c("July/August bottom temperature", "November/December north current", "Sediment", "Slope", 
-                    "Depth", "BBRKC survey CPUE")
+  top_p_names2 <- c("July/August bottom temperature", "BBRKC survey CPUE", "Sediment", "November/December north current",  
+                    "Depth", "Slope")
   
   data.frame(names = top_p_names2, rel.inf = top_p$rel.inf) %>%
     mutate(lab = paste0(names, " (", round(rel.inf, 1), "%)")) -> p_labs
   
   ggplot(top_p_df, aes(x = Value, y = Fitted)) +
     geom_line(linewidth = 1, color = "#4B0055") +
+    geom_rug()+
     facet_wrap(~factor(var, levels = top_p_names, labels = p_labs$lab),  labeller = label_wrap_gen(width=25), 
                scales = "free_x", ncol = 3, nrow = 3)+
     ylab("Fitted response")+
@@ -883,15 +886,16 @@ source("./Scripts/load.libs.params.R")
   
   unique(top_b_df$var) -> top_b_names
   
-  top_b_names2 <- c("Depth", "Maximum tidal current", "September/October bottom temperature",
-                    "January/February bottom temperature", 
-                    "May/June north current", "BBRKC survey CPUE")
+  top_b_names2 <- c("Depth", "Maximum tidal current", "January/February bottom temperature", 
+                    "September/October bottom temperature",
+                    "May/June north current", "January/February east current")
   
   data.frame(names = top_b_names2, rel.inf = top_b$rel.inf) %>%
     mutate(lab = paste0(names, " (", round(rel.inf, 1), "%)")) -> b_labs
   
   ggplot(top_b_df, aes(x = Value, y = Fitted)) +
     geom_line(linewidth = 1, color = "#009B95") +
+    geom_rug()+
     ylab("Fitted response")+
     xlab("Observed value")+
     facet_wrap(~factor(var, levels = top_b_names, labels = b_labs$lab),labeller = label_wrap_gen(width=25),
@@ -933,10 +937,10 @@ ggplot(ts_dat %>% filter(predict_year < 2023), mapping = aes(x = predict_year, y
                      labels= seq(min(ts_dat$predict_year), max(ts_dat$predict_year), by = 2))+
   #ggtitle(paste(mat_sex, "bycatch"))+
   #scale_y_continuous(breaks = breaks)+
-  scale_color_manual(values = c("#4B0055", "#FDE333", "#009B95"),
+  scale_color_manual(values = c("#0D0887FF", "#F89441FF", "#7E03A8FF"),
                      name = "",
                      labels = c("Logbook", "Observer - bycatch", "Observer - BBRKC"))+
-  scale_fill_manual(values = c("#4B0055", "#FDE333", "#009B95"),
+  scale_fill_manual(values = c("#0D0887FF", "#F89441FF", "#7E03A8FF"),
                     name = "",
                     labels = c("Logbook", "Observer - bycatch", "Observer - BBRKC"))+
   ggplot2::theme(
@@ -1224,15 +1228,14 @@ ggsave(plot =catch_ppts, paste0("./Figures/Fall.LM.catchppts.png"),
   ggplot2::ggplot() +
     ggplot2::geom_sf(data = percpoly2, ggplot2::aes(fill = as.factor(layer)), color = NA) +
     ggplot2::geom_sf(data = st_as_sf(percdummy3),fill=NA, size = .3) +
-   
-    ggplot2::geom_sf(data = st_as_sf(westBLZ),
-                     fill = NA,
-                     color = "blue",
-                     linewidth = 1)+
     ggplot2::geom_sf(data = st_as_sf(area512),
                      fill = NA,
                      color = "purple",
                      linewidth = 0.75)+
+    ggplot2::geom_sf(data = st_as_sf(westBLZ),
+                     fill = NA,
+                     color = "blue",
+                     linewidth = 1)+
     ggplot2::geom_sf(data = st_as_sf(RKCSA),
                      fill = NA,
                      color = "red",
