@@ -314,10 +314,10 @@ dat2 %>%
           se = std/sqrt(Neff)) -> hh
 
 ggplot()+
-  geom_bar(hh, mapping = aes(cc, prop_catch2, fill = cc), color = "lightgrey",
+  geom_bar(hh %>% filter(AREA != "Other Bristol Bay"), mapping = aes(factor(cc, levels = c("Warm", "Cold")), prop_catch2, fill = cc), color = "lightgrey",
            stat = "identity", position = "dodge")+
   theme_bw()+
-  geom_errorbar(hh, mapping = aes(x = cc, ymin = prop_catch2 - se, ymax = prop_catch2 + se), width = 0)+
+  geom_errorbar(hh %>% filter(AREA != "Other Bristol Bay"), mapping = aes(x = factor(cc, levels = c("Warm", "Cold")), ymin = prop_catch2 - se, ymax = prop_catch2 + se), width = 0)+
   facet_wrap(~factor(AREA, levels = c("Bycatch Limitation Zone 1 (west of 162°)", "Red King Crab Savings Area", 
                                       "NMFS Statistical Area 512", "Nearshore Bristol Bay trawl closure area")), 
              labeller = label_wrap_gen(width = 28, multi_line = TRUE))+
