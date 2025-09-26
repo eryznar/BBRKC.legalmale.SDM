@@ -1,14 +1,20 @@
+# PURPOSE:
+# To evaluate predicted closure area catch with SST
 
+# AUTHOR: 
+# Emily Ryznar - NOAA/NMFS RACE Shellfish Assessment Program (emily.ryznar@noaa.gov)
+
+# LOAD LIBS/PARAMS ------
 source("./Scripts/load.libs.params.R")
 
-
+# LOAD DATA ----
 Fall_lm.preds <- rast("./Data/Fall_lm.preds.tif")
 
 btemp <- subset(Fall_lm.preds, grep("mean.temp ", names(Fall_lm.preds)))
 head(as.data.frame(btemp[[1]]))
 
 
-### Compute anomalies -----
+### Compute SST anomalies -----
 JF <- subset(btemp, grep("Jan/Feb ", names(btemp))) %>%
       cbind(as.data.frame(.), crds(.)) %>%
         dplyr::select(28:56) %>%

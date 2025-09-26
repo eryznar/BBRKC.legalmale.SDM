@@ -1,3 +1,10 @@
+# PURPOSE:
+# To respond to miscellaneous requests from reviewers
+
+# AUTHOR: 
+# Emily Ryznar - NOAA/NMFS RACE Shellfish Assessment Program (emily.ryznar@noaa.gov)
+
+# LOAD LIBS/PARAMS ------
 source("./Scripts/load.libs.params.R")
 
 # Calculating sampling distribution by year and data type
