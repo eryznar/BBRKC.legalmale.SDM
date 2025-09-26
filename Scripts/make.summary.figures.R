@@ -36,7 +36,7 @@ source("./Scripts/load.libs.params.R")
   
   for(ii in 1:length(predict_yr)){
     
-    preds <- subset(preds, grep("GFbycatch.F", names(preds), invert = TRUE)) # dropping gf bycatch bc it came out least important and the raster makes the spatial predictions look wonky
+    preds <- subset(preds, grep("GFbycatch.F", names(preds), invert = TRUE)) # dropping gf bycatch bc it came out least important
     
     # Specify past year based on present year and prediction period for subsetting
     pst <- ifelse(predict_yr[ii] == 2021, c(predict_yr[ii]-2, predict_yr[-length(predict_yr[ii])]), 
