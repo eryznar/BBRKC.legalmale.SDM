@@ -202,77 +202,77 @@ source("./Scripts/load.libs.params.R")
   #  spatpred_df2 %>%
   #     rast() %>%
   #     raster() -> spatpred
-  #   
+  # 
   # # Set crs
   #   crs(spatpred) <- map.crs
-  #   
+  # 
   # # Cut the prediction map by the breaks
   #   perc.map <- raster::cut(spatpred, breaks = perc.breaks)
-  #   
+  # 
   # # set up the factor maps
   #   perc.vals <- raster::getValues(perc.map)
   #   perc.vals[perc.vals == 1] <- NA
-  #   
+  # 
   # # convert the raster to polygons
   #   percpoly0 <- stars::st_as_stars(perc.map)
   #   percpoly <- sf::st_as_sf(percpoly0,merge = TRUE)
   #   percpoly2 <- percpoly[percpoly$layer != 1, ]
-  #   
+  # 
   # # we'll need a new outline
   #   perc.dummy.raster <- raster::raster(perc.map)
   #   perc.vals2 <- is.na(perc.vals) == F
   #   perc.dummy.raster <- raster::setValues(perc.dummy.raster, values = perc.vals2)
-  #   
+  # 
   #   percdummy0 <- stars::st_as_stars(perc.dummy.raster)
   #   percdummy <- sf::st_cast(sf::st_as_sf(percdummy0, merge = TRUE))
   #   percdummy2 <- sf::st_transform(percdummy, sf::st_crs(map.crs))
-  #   
+  # 
   # # Dropping the smallest areas
   #   percdummy.poly <- sf::st_cast(percdummy2, "POLYGON")
   #   areas <- sf::st_area(percdummy.poly)
-  #   
+  # 
   #   outside <- order(areas, decreasing = T)[1]
   #   toosmall <- which(as.numeric(areas) < 10^8)
-  #   
+  # 
   #   perc.x <- percdummy2$layer[-c(outside, toosmall)]
   #   perc.y <- percdummy2$geometry[-c(outside, toosmall)]
   #   percdummy3 <- sf::st_sf(perc.x, perc.y) %>%
   #             vect() %>%
   #             crop(BB_strata)
-  #   
+  # 
   # # Set up plot boundary
-  #   plot.boundary.untrans <- data.frame(y = c(54.25, 59.25), 
+  #   plot.boundary.untrans <- data.frame(y = c(54.25, 59.25),
   #                                       x = c(-167.5, -158)) # plot boundary unprojected
-  #   
+  # 
   #   plot.boundary <- plot.boundary.untrans %>%
   #     sf::st_as_sf(coords = c(x = "x", y = "y"), crs = sf::st_crs(4326)) %>%
   #     sf::st_transform(crs = map.crs) %>%
   #     sf::st_coordinates() %>%
   #     as.data.frame() %>%
   #     dplyr::rename(x = X, y = Y) # plot boundary projected
-  #   
+  # 
   # # Set up title
   # if(seas == "F"){
   #   title = "Fall Red King Crab Legal Male Encounter Probability"
   # } else{
   #   title = "Winter Red King Crab Legal Male Encounter Probability"
   # }
-  #   
+  # 
   # # Map
   #   ggplot2::ggplot() +
   #     #ggplot2::geom_sf(data = survey.sf, fill = "grey95")+
   #     ggplot2::geom_sf(data = percpoly2, ggplot2::aes(fill = as.factor(layer)), col = NA) +
   #     ggplot2::geom_sf(data = st_as_sf(percdummy3),fill=NA, size = .3) +
-  #     ggplot2::geom_sf(data = st_as_sf(area512), 
-  #                      fill = NA, 
+  #     ggplot2::geom_sf(data = st_as_sf(area512),
+  #                      fill = NA,
   #                      color = "purple",
   #                      linewidth = 1.5)+
-  #     ggplot2::geom_sf(data = st_as_sf(BB_strata), 
-  #                      fill = NA, 
+  #     ggplot2::geom_sf(data = st_as_sf(BB_strata),
+  #                      fill = NA,
   #                      color = "black",
   #                      linewidth = 2)+
-  #     ggplot2::geom_sf(data = region_layers$akland, 
-  #                      fill = "grey70", 
+  #     ggplot2::geom_sf(data = region_layers$akland,
+  #                      fill = "grey70",
   #                      color = "black")+
   #     ggplot2::geom_sf(data = st_as_sf(RKCSA),
   #                      fill = NA,
@@ -297,13 +297,14 @@ source("./Scripts/load.libs.params.R")
   #       legend.text = ggplot2::element_text(size = 12), legend.title = ggplot2::element_text(size = 12),
   #       legend.position = "bottom", plot.title = element_text(size = 18),
   #       plot.background = ggplot2::element_rect(fill = "white", color = "white")) -> avg.perc_rast
-  #   
-  # ggsave(plot = avg.perc_rast, "./Figures/EFH Legal Male/fall.lm.avg.perc_rast.png", 
+  # 
+  # ggsave(plot = avg.perc_rast, "./Figures/EFH Legal Male/fall.lm.avg.perc_rast.png",
   #        height = 10, width = 10, units = "in")
-  #   
-  
+  # 
+
   # Plot 3: EFH percentile avg habitat across for last five years ------------------------------------------------
-  plot_yrs <- predict_yr[(length(predict_yr)-4):length(predict_yr)]
+  #plot_yrs <- predict_yr[(length(predict_yr)-4):length(predict_yr)]
+  plot_yrs <- predict_yr
   
   # Set up list to store maps
   spatpred_list <- list()
@@ -410,7 +411,7 @@ source("./Scripts/load.libs.params.R")
     
     # Set up year label size
     size = ifelse(plot_yrs[ii] < max(plot_yrs), 5, 10)
-    lw = ifelse(plot_yrs[ii] < max(plot_yrs), 1, 1.5)
+    lw = 1.5
     #col1 <- ifelse(plot_yrs[ii] < max(plot_yrs), NA, "red")
     col1 <- "red"
     #col2 <- ifelse(plot_yrs[ii] < max(plot_yrs), NA, "purple")
@@ -431,14 +432,14 @@ source("./Scripts/load.libs.params.R")
       #ggplot2::geom_sf(data = survey.sf, fill = "grey95")+
       ggplot2::geom_sf(data = percpoly2, ggplot2::aes(fill = as.factor(layer)), col = NA) +
       ggplot2::geom_sf(data = st_as_sf(percdummy3),fill=NA, size = .3) +
+      ggplot2::geom_sf(data = pres_hull, 
+                       fill = NA, 
+                       color = alpha("white", 0.85),
+                       linewidth = 1.5)+
       ggplot2::geom_sf(data = st_as_sf(area512),
                        fill = NA,
                        color = col2,
                        linewidth = lw)+
-      ggplot2::geom_sf(data = pres_hull, 
-                       fill = NA, 
-                       color = alpha("white", 0.85),
-                       linewidth = 1)+
       # ggplot2::geom_sf(data = abs_hull, 
       #                  fill = NA, 
       #                  color = alpha("white", 0.8),
@@ -459,7 +460,7 @@ source("./Scripts/load.libs.params.R")
                        fill = NA,
                        color = col1,
                        linewidth = lw)+
-      geom_text(data = year_lab, aes(x=X, y=Y, label= lab), fontface = "bold", size=size) +
+      geom_text(data = year_lab, aes(x=X, y=Y, label= lab), fontface = "bold", size=10) +
       #ggtitle(title)+
       ggplot2::geom_sf(data = st_as_sf(RKCSA_sub),
                        fill = NA,
@@ -475,63 +476,63 @@ source("./Scripts/load.libs.params.R")
         legend.key = ggplot2::element_rect(fill = NA, color = "grey30"),
         #legend.position = legend.pos,
         panel.grid.major = element_blank(),
-        axis.title = ggplot2::element_blank(), axis.text = ggplot2::element_text(size = 10),
-        legend.text = ggplot2::element_text(size = 11), legend.title = ggplot2::element_text(size = 11),
+        axis.title = ggplot2::element_blank(), axis.text = ggplot2::element_text(size = 14),
+        legend.text = ggplot2::element_text(size = 14), legend.title = ggplot2::element_text(size = 14),
         legend.position = "bottom", plot.title = element_text(size = 18),
         plot.background = ggplot2::element_rect(fill = "white", color = "white")) -> spatpred_list[[ii]]
     
-    #ggsave(spatpred_list[ii], paste0("./Figures/EFH Legal Male/GIF/lm.perc.", plot_yrs[ii], ".png",  height = 10, width = 10, units = "in")
+    ggsave(plot = spatpred_list[[ii]], paste0("./Figures/GIF/lm.perc.", plot_yrs[ii], ".png"),  height = 10, width = 10, units = "in")
     
-    
-    # Calculate percent in area 512 and RKCSA by year
-    spatpred_df_yr %>%
-      st_as_sf(., coords = c("x", "y"), crs = map.crs)  %>%
-      vect() -> sp.dat
-    
-    
-    sum(sp.dat$catch_pp) -> total
-    
-    sp.dat %>%
-      mask(., area512) -> a512tot
-    
-    sp.dat %>%
-      mask(., westBLZ) -> BLZtot
-    
-    sp.dat %>%
-      mask(., RKCSA_sub) -> RKCSAtot
-    
-    dat <- data.frame(total = total, 
-                      tot_dens = total/((st_area(st_as_sf(BB_strata)))),
-                      a512dens = (sum(a512tot$catch_pp))/((st_area(st_as_sf(area512)))),
-                      BLZdens = (sum(BLZtot$catch_pp))/((st_area(st_as_sf(westBLZ)))),
-                      RKCSAdens = (sum(RKCSAtot$catch_pp))/((st_area(st_as_sf(RKCSA_sub)))),
-                      a512perc = sum(a512tot$catch_pp)/total, 
-                      RKCSAperc=sum(RKCSAtot$catch_pp)/total, 
-                      BLZperc=sum(BLZtot$catch_pp)/total,
-                      year = plot_yrs[ii])
-    
-    perc.dat <- rbind(perc.dat, dat)
-    
+    # 
+    # # Calculate percent in area 512 and RKCSA by year
+    # spatpred_df_yr %>%
+    #   st_as_sf(., coords = c("x", "y"), crs = map.crs)  %>%
+    #   vect() -> sp.dat
+    # 
+    # 
+    # sum(sp.dat$catch_pp) -> total
+    # 
+    # sp.dat %>%
+    #   mask(., area512) -> a512tot
+    # 
+    # sp.dat %>%
+    #   mask(., westBLZ) -> BLZtot
+    # 
+    # sp.dat %>%
+    #   mask(., RKCSA_sub) -> RKCSAtot
+    # 
+    # dat <- data.frame(total = total, 
+    #                   tot_dens = total/((st_area(st_as_sf(BB_strata)))),
+    #                   a512dens = (sum(a512tot$catch_pp))/((st_area(st_as_sf(area512)))),
+    #                   BLZdens = (sum(BLZtot$catch_pp))/((st_area(st_as_sf(westBLZ)))),
+    #                   RKCSAdens = (sum(RKCSAtot$catch_pp))/((st_area(st_as_sf(RKCSA_sub)))),
+    #                   a512perc = sum(a512tot$catch_pp)/total, 
+    #                   RKCSAperc=sum(RKCSAtot$catch_pp)/total, 
+    #                   BLZperc=sum(BLZtot$catch_pp)/total,
+    #                   year = plot_yrs[ii])
+    # 
+    # perc.dat <- rbind(perc.dat, dat)
+    # 
   }
   
   
-  
-  # Arrange plots
-  ggarrange(ggarrange(spatpred_list[[1]] + rremove("axis.text") + rremove("ticks"),
-                      spatpred_list[[2]] + rremove("axis.text") + rremove("ticks"),
-                      spatpred_list[[3]] + rremove("axis.text") + rremove("ticks"),
-                      spatpred_list[[4]] + rremove("axis.text") + rremove("ticks"),
-                      nrow=2, ncol=2, legend = "none"),
-            spatpred_list[[5]], heights = c(1,1.15), nrow= 2) %>%
-    annotate_figure(top=text_grob(title, size=20, face="bold")) -> yr.perc_rast
-  
-  # Save
-  ggsave(plot = yr.perc_rast, "./Figures/fall.lm.yr.perc_rast.png", height=10, width=7.1, units="in")
-  
-  
-  return(list(pred_raster = pred_raster, spatpred_df = spatpred_df, pred_plot = pred_plot, percpoly2 = percpoly2, percdummy3=percdummy3,
-               perc.dat = perc.dat))
-  
+  # 
+  # # Arrange plots
+  # ggarrange(ggarrange(spatpred_list[[1]] + rremove("axis.text") + rremove("ticks"),
+  #                     spatpred_list[[2]] + rremove("axis.text") + rremove("ticks"),
+  #                     spatpred_list[[3]] + rremove("axis.text") + rremove("ticks"),
+  #                     spatpred_list[[4]] + rremove("axis.text") + rremove("ticks"),
+  #                     nrow=2, ncol=2, legend = "none"),
+  #           spatpred_list[[5]], heights = c(1,1.15), nrow= 2) %>%
+  #   annotate_figure(top=text_grob(title, size=20, face="bold")) -> yr.perc_rast
+  # 
+  # # Save
+  # ggsave(plot = yr.perc_rast, "./Figures/fall.lm.yr.perc_rast.png", height=10, width=7.1, units="in")
+  # 
+  # 
+  # return(list(pred_raster = pred_raster, spatpred_df = spatpred_df, pred_plot = pred_plot, percpoly2 = percpoly2, percdummy3=percdummy3,
+  #              perc.dat = perc.dat))
+  # 
 }
 
   # Summary dot plot of PA and top 10 along with csv
@@ -716,6 +717,8 @@ source("./Scripts/load.libs.params.R")
   resp_data <- lm_df
   seas <- "F"
   predict_yr <- c(1998:2019, 2021:2023)
+  
+  predict_yr <- c(2013:2019, 2021:2023)
 
   # Run functions
   MakeDotPlot(lm_df, "F", c(1997:2019, 2021:2023)) -> dot_out
@@ -830,11 +833,11 @@ source("./Scripts/load.libs.params.R")
     annotate(geom = "text", label = paste("PDE = ", round(PDE, 2)), 
              x = 3.5, y = 28, fontface = "bold", color = "#4B0055", size = 7)+
     theme(axis.title = element_text(size = 20), axis.text.y = element_text(size = 17),
-          #axis.text.x=element_text(size = 17)) -> var_inf_plot
-          axis.text.x=element_text(angle=40, hjust=1, size = 17)) -> var_inf_plot
+          axis.text.x=element_text(size = 17)) -> var_inf_plot
+          #axis.text.x=element_text(angle=40, hjust=1, size = 17)) -> var_inf_plot
   
   ggsave(plot = var_inf_plot, paste0("./Figures/Fall.LM.varinfplot.png"), 
-         height=8, width=10, units="in")
+         height=7, width=14, units="in")
   
   
   # Variable importance information for top 6 model_p vars -----------------------------

@@ -57,7 +57,8 @@ dfl_0516 %>%
          day = lubridate::day(sampdate),
          catch = RKC_Haul.Number,
          catch_pp = catch/Pots_Hauled) %>%
-  dplyr::select(sampdate, year, month, day, lat, lon, catch, catch_pp, adfg) -> dfl_0516CLEAN2
+  rename(pots_total = Pots_Hauled) %>%
+  dplyr::select(sampdate, year, month, day, lat, lon, catch, catch_pp, adfg, pots_total) -> dfl_0516CLEAN2
 
 # 2017
 dfl_17 %>%
@@ -87,7 +88,7 @@ dfl_17CLEAN %>%
          day = lubridate::day(sampdate),
          catch = crab_count,
          catch_pp = catch/pots_total) %>%
-  dplyr::select(sampdate, year, month, day, lat, lon, catch, catch_pp, adfg) -> dfl_1718CLEAN2
+  dplyr::select(sampdate, year, month, day, lat, lon, catch, catch_pp, adfg, pots_total) -> dfl_1718CLEAN2
 
 # 2018-2019
 dfl_18 %>%
@@ -118,8 +119,9 @@ dfl_18CLEAN %>%
          day = lubridate::day(sampdate),
          catch = crab_count,
          catch_pp = catch/Pots_Total) %>%
+  rename(pots_total = Pots_Total) %>%
   filter(is.na(sampdate) == FALSE) %>%
-  dplyr::select(sampdate, year, month, day, lat, lon, catch, catch_pp, adfg) -> dfl_1819CLEAN2
+  dplyr::select(sampdate, year, month, day, lat, lon, catch, catch_pp, adfg, pots_total) -> dfl_1819CLEAN2
 
 # 2019-2020
 dfl_1920 %>%
@@ -148,8 +150,9 @@ dfl_1920CLEAN %>%
          month = lubridate::month(sampdate),
          day = lubridate::day(sampdate),
          catch = crab_count,
-         catch_pp = catch/(pots-lost_pots)) %>%
-  dplyr::select(sampdate, year, month, day, lat, lon, catch, catch_pp, adfg) -> dfl_1920CLEAN2
+         catch_pp = catch/(pots-lost_pots),
+         pots_total = pots-lost_pots) %>%
+  dplyr::select(sampdate, year, month, day, lat, lon, catch, catch_pp, adfg, pots_total) -> dfl_1920CLEAN2
 
 # 2020-2021 
 dfl_2021 %>%
@@ -180,7 +183,7 @@ dfl_2021CLEAN %>%
          day = lubridate::day(sampdate),
          catch = crab_count,
          catch_pp = catch/pots_total) %>%
-  dplyr::select(sampdate, year, month, day, lat, lon, catch, catch_pp, adfg) -> dfl_2021CLEAN2
+  dplyr::select(sampdate, year, month, day, lat, lon, catch, catch_pp, adfg, pots_total) -> dfl_2021CLEAN2
 
 # 2023-2024
 dfl_2324 %>%
@@ -213,7 +216,7 @@ dfl_2324CLEAN %>%
          day = lubridate::day(sampdate),
          catch = crab_count,
          catch_pp = catch/pots_total) %>%
-  dplyr::select(sampdate, year, month, day, lat, lon, catch, catch_pp, adfg) -> dfl_2324CLEAN2
+  dplyr::select(sampdate, year, month, day, lat, lon, catch, catch_pp, adfg, pots_total) -> dfl_2324CLEAN2
 
 # 2024-2025
 dfl_2425 %>%
@@ -234,7 +237,7 @@ dups %>%
 write.csv(dfl_2425CLEAN, "./Data/Clean DFL data/dfl_2024-25.csv")
 
 
-dfl_2324CLEAN %>%
+dfl_2425CLEAN %>%
   mutate(pots_total = Pot_Count-Lost_Pots) %>%
   rename(pots = Pot_Count, crab_count = Crab_Count) %>%
   dplyr::filter(pots > 5 & pots <= 100) %>% #filtering for pots >5, and <=100
@@ -246,7 +249,7 @@ dfl_2324CLEAN %>%
          day = lubridate::day(sampdate),
          catch = crab_count,
          catch_pp = catch/pots_total) %>%
-  dplyr::select(sampdate, year, month, day, lat, lon, catch, catch_pp, adfg) -> dfl_2324CLEAN2
+  dplyr::select(sampdate, year, month, day, lat, lon, catch, catch_pp, pots_total) -> dfl_2425CLEAN2
 
 # Join data frames, specify seasons
 #rbind(dfl_0516, dfl_17, dfl_18, dfl_1920, dfl_20) %>%

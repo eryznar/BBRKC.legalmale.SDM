@@ -306,25 +306,54 @@ ggsave(plot = plot.out, "./Figures/predicted_top5warmVcold_catchprop.png", width
 
 dat2 %>%
   filter(year %in% top.yrs, type == "Predicted") %>%
-  group_by(AREA, cc) %>%
-  reframe(prop_catch2 = mean(prop_catch),
+  pivot_longer(., cols = c("area_catch", "prop_catch")) %>%
+  mutate(name = case_when((name == "area_catch") ~ "Absolute abundance",
+                          TRUE ~ "Proportion of abundance")) %>%
+  group_by(AREA, name, cc) %>%
+  reframe(mean_val = mean(value),
           N = n(),
-          std = sd(prop_catch),
-          Neff = coda::effectiveSize(prop_catch),
-          se = std/sqrt(Neff)) -> hh
-
+          std = sd(value),
+          Neff = coda::effectiveSize(value),
+          se = std/sqrt(Neff)) %>%
+  mutate(mean_val = case_when((name == "Absolute abundance") ~ mean_val/1000000,
+                              TRUE ~ mean_val),
+         se = case_when((name == "Absolute abundance") ~ se/1000000,
+                        TRUE ~ se)) -> hh
+          
 ggplot()+
-  geom_bar(hh %>% filter(AREA != "Other Bristol Bay"), mapping = aes(factor(cc, levels = c("Warm", "Cold")), prop_catch2, fill = cc), color = "lightgrey",
+  geom_bar(hh %>% filter(AREA != "Other Bristol Bay"), mapping = aes(factor(cc, levels = c("Warm", "Cold")), mean_val, fill = cc), color = "lightgrey",
            stat = "identity", position = "dodge")+
   theme_bw()+
-  geom_errorbar(hh %>% filter(AREA != "Other Bristol Bay"), mapping = aes(x = factor(cc, levels = c("Warm", "Cold")), ymin = prop_catch2 - se, ymax = prop_catch2 + se), width = 0)+
+  geom_errorbar(hh %>% filter(AREA != "Other Bristol Bay"), mapping = aes(x = factor(cc, levels = c("Warm", "Cold")), ymin = mean_val - se, ymax = mean_val + se), width = 0)+
+  facet_grid(name~factor(AREA, levels = c("Bycatch Limitation Zone 1 (west of 162°)", "Red King Crab Savings Area", 
+                                      "NMFS Statistical Area 512", "Nearshore Bristol Bay trawl closure area")), 
+             labeller = label_wrap_gen(width = 28, multi_line = TRUE), scales = "free_y")+
+  #scale_color_manual(values = c("#A1A6C8", "#CA9CA4"), labels = c("Cold", "Warm"), name = "")+
+  scale_fill_manual(values = c("#A1A6C8", "#CA9CA4"), labels = c("Cold", "Warm"), name = "")+
+  xlab("Year")+
+  #ylab("Predicted proportion of abundance")+
+  theme(axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title = element_blank(),
+        strip.text = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        legend.position = "none", 
+        legend.direction = "horizontal") -> plot.out3
+
+ggsave(plot = plot.out3, "./Figures/predicted_top5warmVcold_AVGcatchprop.png", width = 8.5, height = 6, units = "in")
+
+ggplot()+
+  geom_bar(hh %>% filter(AREA != "Other Bristol Bay"), mapping = aes(factor(cc, levels = c("Warm", "Cold")), abs_abund, fill = cc), color = "lightgrey",
+           stat = "identity", position = "dodge")+
+  theme_bw()+
+  geom_errorbar(hh %>% filter(AREA != "Other Bristol Bay"), mapping = aes(x = factor(cc, levels = c("Warm", "Cold")), ymin = abs_abund - se_abund, ymax = abs_abund + se_abund), width = 0)+
   facet_wrap(~factor(AREA, levels = c("Bycatch Limitation Zone 1 (west of 162°)", "Red King Crab Savings Area", 
                                       "NMFS Statistical Area 512", "Nearshore Bristol Bay trawl closure area")), 
              labeller = label_wrap_gen(width = 28, multi_line = TRUE))+
   #scale_color_manual(values = c("#A1A6C8", "#CA9CA4"), labels = c("Cold", "Warm"), name = "")+
   scale_fill_manual(values = c("#A1A6C8", "#CA9CA4"), labels = c("Cold", "Warm"), name = "")+
   xlab("Year")+
-  ylab("Predicted proportion of abundance")+
+  ylab("Predicted absolute abundance")+
   theme(axis.text.x = element_text(size = 12),
         axis.text.y = element_text(size = 12),
         axis.title.y = element_text(size = 12),
@@ -332,9 +361,9 @@ ggplot()+
         strip.text = element_text(size = 12),
         legend.text = element_text(size = 12),
         legend.position = "none", 
-        legend.direction = "horizontal") -> plot.out3
+        legend.direction = "horizontal") -> plot.out4
 
-ggsave(plot = plot.out3, "./Figures/predicted_top5warmVcold_AVGcatchprop.png", width = 8.5, height = 6, units = "in")
+ggsave(plot = plot.out4, "./Figures/predicted_top5warmVcold_AVGabsabund.png", width = 8.5, height = 4, units = "in")
 
 # DOES AVERAGING SPATIAL DISTRIBUTIONS ACROSS ANOMALY YEARS PRODUCE THE SAME RESULTS AS IN FIG 6? ----
 ### Read in spatial model predictions for directed fishery

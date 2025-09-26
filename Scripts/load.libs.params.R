@@ -22,6 +22,7 @@ library(geosphere)
 library(usdm)
 library(statip)
 library(ggpattern)
+library(corrplot)
 
 
 ### SET SPATIAL DETAILS ---------------------------------------------------------

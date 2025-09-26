@@ -80,10 +80,29 @@ dplyr::bind_rows(datalist) %>%
 # Check for variable collinearity, drop collinear vars
 non_covs <- c("x", "y", "predict_year", "catch_pp", "PA", "fishery")
 
+
+
 sdmData[-which(colnames(sdmData) %in% non_covs)] %>%
   as.data.frame() %>%
-  na.omit() %>%
+  na.omit() -> cor.dat
+
+cor.mat <- cor(cor.dat)
+
+cor.dat %>%
   vifstep(th=5) -> vif_drop 
+
+png(filename = ".png", width = 800, height = 600) 
+corrplot(cor.mat, method = "sq", col = oceColorsPalette(64), tl.col = "black", cl.cex = 0.7, order = "FPC")
+
+
+vif.vals <- vif_drop@results
+
+plot.dat <- data.frame(vals = vif.vals$VIF, names= vif.vals$Variables)
+
+ggplot(plot.dat, aes(names, vals))+
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 45, vjust= 0.9, hjust = 0.95))
+
 
 dropvars <- vif_drop@excluded 
 
@@ -114,6 +133,29 @@ for (ii in 1:length(iter)){
 train <- dplyr::bind_rows(trainlist)
 test <- dplyr::bind_rows(testlist)
 
+# Set up plot boundary
+plot.boundary.untrans <- data.frame(y = c(54.25, 59.25), 
+                                    x = c(-167.5, -158)) # plot boundary unprojected
+
+plot.boundary <- plot.boundary.untrans %>%
+  sf::st_as_sf(coords = c(x = "x", y = "y"), crs = sf::st_crs(4326)) %>%
+  sf::st_transform(crs = map.crs) %>%
+  sf::st_coordinates() %>%
+  as.data.frame() %>%
+  dplyr::rename(x = X, y = Y) # plot boundary projected
+
+
+plot(Fall_lm.preds[[616]])
+lines(BB_strata, lwd = 3)
+points(train$x, train$y, col = "lightgrey")
+
+plot(Fall_lm.preds[[1]])
+lines(BB_strata, lwd = 2)
+points(test$x, test$y)
+
+ggplot()+
+  geom_sf(data = st_as_sf(BB_strata), fill = NA, linewidth = 1)+
+  geom_tile(mapping = aes(Fall_lm.preds[[1]]))
 
 write.csv(train, "./Output/New models/lm_F_train.csv")
 write.csv(test, "./Output/New models/lm_F_test.csv")
