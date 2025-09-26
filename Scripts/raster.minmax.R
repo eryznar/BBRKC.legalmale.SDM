@@ -1,34 +1,14 @@
-#PREDICTING LEGAL MALE FALL/WINTER DF DISTRIBUTION 
-
-### -------------------------------------------------------------------------------------------------------
 #PURPOSE: To generate rasters of influential temperature covariates for fall legal male SDM of average
 #         of minimum and maximum 5 values per grid cell across years
 
-#AUTHOR: Emily Ryznar
+# AUTHOR: 
+# Emily Ryznar - NOAA/NMFS RACE Shellfish Assessment Program (emily.ryznar@noaa.gov)
+
 
 ### LOAD PACKAGES -----------------------------------------------------------------------------------------
-library(sf)
-library(ggmap)
-library(rgdal)
-library(tidyverse)
-library(RColorBrewer)
-library(patchwork)
-library(ggpubr)
-library(raster)
-library(terra)
-library(lubridate)
-library(akgfmaps)
-library(biomod2)
-library(gam)
-library(purrr)
+source("./Scripts/load.libs.params.R")
 
-library(dismo)
-library(gbm) 
-library(pROC)
-library(ggrepel)
-library(geosphere)
-
-
+### LOAD DATA -------------------------------------------------------------------
 Fall_lm.preds <- rast("./Data/EFH Legal Male/Fall_lm.preds.tif")
 
 btemp <- subset(Fall_lm.preds, grep("mean.temp ", names(Fall_lm.preds)))

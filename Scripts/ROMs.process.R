@@ -1,6 +1,11 @@
-#devtools::install_github('AFSC-Shellfish-Assessment-Program/crabber')
+#PURPOSE:
+# To process ROMs bottom temperature data
 
+#AUTHOR:
+# Emily Ryznar - NOAA/NMFS RACE Shellfish Assessment Program (emily.ryznar@noaa.gov)
 
+### LOAD PROCESSING PARAMETERS --------------------------------------------------
+source("./Scripts/load.libs.params.R")
 
 ## prepare bathymetry data of Bering Sea region
 library(rgdal)

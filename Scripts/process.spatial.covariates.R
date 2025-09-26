@@ -1,5 +1,5 @@
 #PURPOSE:
-# To compile data to date for BBRKC legal male SDMs and process as needed
+# To compile spatial data to date for BBRKC legal male SDMs and process as needed
 
 #AUTHOR:
 # Emily Ryznar - NOAA/NMFS RACE Shellfish Assessment Program (emily.ryznar@noaa.gov)

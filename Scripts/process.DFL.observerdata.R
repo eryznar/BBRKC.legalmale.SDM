@@ -1,4 +1,8 @@
-#PURPOSE: To process rkc data for use in BBRKC legal male fall distribution models
+#PURPOSE: 
+# To process observer rkc directed fishery data for use in BBRKC legal male fall distribution models
+
+# AUTHOR: 
+# Emily Ryznar - NOAA/NMFS RACE Shellfish Assessment Program (emily.ryznar@noaa.gov)
 
 ### LOAD LIBS/PARAMS ----
 source("./Scripts/load.libs.params.R")

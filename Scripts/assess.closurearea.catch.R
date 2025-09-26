@@ -1,5 +1,5 @@
 # PURPOSE:
-# To evaluate predicted closure area catch with SST
+# To evaluate predicted closure area catch with temperature
 
 # AUTHOR: 
 # Emily Ryznar - NOAA/NMFS RACE Shellfish Assessment Program (emily.ryznar@noaa.gov)

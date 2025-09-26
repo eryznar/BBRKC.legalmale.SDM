@@ -1,7 +1,13 @@
-### LOAD PROCESSING PARAMETERS 
+# PURPOSE:
+# To evaluate climate bias between the area sampled by the fishery and the broader Bristol Bay area
+
+# AUTHOR: 
+# Emily Ryznar - NOAA/NMFS RACE Shellfish Assessment Program (emily.ryznar@noaa.gov)
+
+# LOAD LIBS/PARAMS ------
 source("./Scripts/load.libs.params.R")
 
-
+# LOAD DATA ----
 # Read in spatial covariates
 preds <- rast("./Data/Fall_lm.preds.tif")
 

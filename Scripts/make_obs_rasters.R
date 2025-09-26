@@ -1,5 +1,11 @@
-source("./Scripts/load.libs.params.R")
+# PURPOSE:
+# To make spatial rasters of directed fishery observation data
 
+# AUTHOR: 
+# Emily Ryznar - NOAA/NMFS RACE Shellfish Assessment Program (emily.ryznar@noaa.gov)
+
+# LOAD LIBS/PARAMS ------
+source("./Scripts/load.libs.params.R")
 # Read in response data
 lm_df <- read.csv("./Data/legalmale_direct.fish.csv") %>%
   filter(season == "F")
